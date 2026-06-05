@@ -2,7 +2,7 @@ name: prometheus-operator
 installation:
   ocm_references:
     - helm_chart_name: prometheus-operator
-      name: ocm.software/ocm-gear/prometheus
+      name: ocm.software/open-delivery-gear/observability
       version: 0.29.0-dev
       artefact:
         name: prometheus-operator

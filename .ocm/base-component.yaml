@@ -1,4 +1,4 @@
-name: ocm.software/ocm-gear/prometheus
+name: ocm.software/open-delivery-gear/observability
 resources:
   - name: prometheus-operator
     version: v0.89.0
