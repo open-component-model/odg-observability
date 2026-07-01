@@ -1,25 +1,25 @@
 name: ocm.software/open-delivery-gear/observability
 resources:
   - name: prometheus-operator
-    version: v0.89.0
+    version: v0.92.1
     type: ociImage
     access:
       type: ociRegistry
       imageReference: quay.io/prometheus-operator/prometheus-operator:v0.89.0
     relation: external
   - name: prometheus
-    version: v3.10.0
+    version: v3.13.0
     type: ociImage
     access:
       type: ociRegistry
-      imageReference: docker.io/prom/prometheus:v3.10.0-distroless
+      imageReference: docker.io/prom/prometheus:v3.13.0-distroless
     relation: external
   - name: prometheus-config-reloader
-    version: v0.89.0
+    version: v0.92.1
     type: ociImage
     access:
       type: ociRegistry
-      imageReference: quay.io/prometheus-operator/prometheus-config-reloader:v0.89.0
+      imageReference: quay.io/prometheus-operator/prometheus-config-reloader:v0.92.1
     relation: external
 labels:
   - name: cloud.gardener.cnudie/responsibles
