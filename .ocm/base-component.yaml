@@ -5,7 +5,7 @@ resources:
     type: ociImage
     access:
       type: ociRegistry
-      imageReference: quay.io/prometheus-operator/prometheus-operator:v0.89.0
+      imageReference: quay.io/prometheus-operator/prometheus-operator:v0.92.1
     relation: external
   - name: prometheus
     version: v3.13.0
