@@ -13,6 +13,9 @@ spec:
   serviceMonitorSelector:
     matchLabels:
       app: {{ $podName }}
+  scrapeConfigSelector:
+    matchLabels:
+      app: {{ $podName }}
   image: {{ include "image" .Values.prometheus.image }}
   version: {{ .Values.prometheus.image.tag }}
   containers:
