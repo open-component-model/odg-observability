@@ -1,0 +1,25 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: kubelet-cadvisor
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+  labels:
+    app: prometheus
+spec:
+  authorization:
+    credentials:
+      key: token
+      name: prometheus-token
+  kubernetesSDConfigs:
+    - role: Node
+  metricsPath: /metrics/cadvisor
+  relabelings:
+    - action: replace
+      regex: (.+):(\d+)
+      replacement: ${1}:10250
+      sourceLabels: [__address__]
+      targetLabel: __address__
+  scheme: HTTPS
+  scrapeInterval: {{ default "30s" .Values.scrapeInterval }}
+  tlsConfig:
+    insecureSkipVerify: true

@@ -203,6 +203,7 @@ rules:
       - watch
   - nonResourceURLs:
       - /metrics
+      - /metrics/cadvisor
     verbs:
       - get
 ---
@@ -222,3 +223,12 @@ subjects:
 - kind: ServiceAccount
   name: prometheus
   namespace: {{ $namespace }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-token
+  namespace: {{ $namespace }}
+  annotations:
+    kubernetes.io/service-account.name: prometheus
+type: kubernetes.io/service-account-token
