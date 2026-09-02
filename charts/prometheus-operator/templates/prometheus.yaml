@@ -24,6 +24,12 @@ spec:
   initContainers:
   - name: init-config-reloader
     image: {{ include "image" (index .Values "prometheus-config-reloader" "image") }} # indexing required since `-` is not allowed in variable names
+  resources:
+    requests:
+      memory: 500Mi
+      cpu: 100m
+    limits:
+      memory: 1Gi
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
