@@ -1,3 +1,13 @@
 apiVersion: v2
 name: prometheus-operator
 version: 0.1.0
+dependencies:
+  # subchart .tgz is vendored under charts/ (committed); consumers never touch
+  # upstream registries. To bump:
+  #   rm charts/kube-state-metrics-*.tgz
+  #   helm pull oci://ghcr.io/prometheus-community/charts/kube-state-metrics \
+  #     --version <version> -d charts/
+  # then update the version below.
+  - name: kube-state-metrics
+    version: 8.6.0
+    repository: oci://ghcr.io/prometheus-community/charts

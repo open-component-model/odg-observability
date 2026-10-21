@@ -16,3 +16,42 @@ prometheus-config-reloader:
     tag: ~
 
 scrapeInterval: 15s
+
+# kube-state-metrics subchart configuration (see
+# https://artifacthub.io/packages/helm/prometheus-community/kube-state-metrics)
+kube-state-metrics:
+  image:
+    # When repository is set (by OCM relocation), the kube-state-metrics.image helper override
+    # in templates/helpers.tpl treats it as a flat "host/path/image" reference (same pattern
+    # as the other images in this chart). Empty string means "not set" — the helper then falls
+    # back to KSM's native registry+repository assembly so upstream defaults still work.
+    repository: ""
+    tag: ~
+    # Explicit default so the fallback registry/repository assembly still works when
+    # repository is unset. Must match the KSM subchart's own default.
+    registry: registry.k8s.io
+  # labels on the Service so our own ServiceMonitor (templates/servicemonitors.yaml)
+  # can select it
+  customLabels:
+    monitoring: prometheus
+  prometheus:
+    monitor:
+      # we create our own ServiceMonitor (see this chart's templates/)
+      enabled: false
+  # keep namespace-scoped collectors minimal by default; flip on if needed
+  collectors:
+    - pods
+    - deployments
+    - statefulsets
+    - daemonsets
+    - replicasets
+    - jobs
+    - cronjobs
+    - nodes
+    - namespaces
+    - persistentvolumeclaims
+    - persistentvolumes
+    - services
+    - endpointslices
+    - resourcequotas
+    - limitranges

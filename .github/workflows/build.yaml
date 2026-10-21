@@ -81,3 +81,7 @@ jobs:
           attribute: prometheus-config-reloader.image.repository
         - ref: ocm-resource:prometheus-config-reloader.tag
           attribute: prometheus-config-reloader.image.tag
+        - ref: ocm-resource:kube-state-metrics.repository
+          attribute: kube-state-metrics.image.repository
+        - ref: ocm-resource:kube-state-metrics.tag
+          attribute: kube-state-metrics.image.tag

@@ -27,3 +27,24 @@ spec:
   endpoints:
     - interval: 15s
       port: metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kube-state-metrics
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+  labels:
+    app: prometheus
+spec:
+  selector:
+    matchLabels:
+      monitoring: prometheus
+  endpoints:
+    - port: http
+      interval: {{ default "15s" .Values.scrapeInterval }}
+      honorLabels: true
+      metricRelabelings:
+        # drop high-cardinality labels we don't need
+        - sourceLabels: [__name__]
+          regex: kube_pod_(container_info|init_container_info)
+          action: drop
