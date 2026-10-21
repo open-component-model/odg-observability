@@ -16,5 +16,10 @@ installation:
       helm_attribute: host
       value: prometheus.${base_url}
       value_type: python-string-template
+    - helm_chart_name: prometheus-operator
+      helm_attribute: alertmanager.enabled
+      value: ${alertmanagerEnabled}
+      value_type: python-string-template
+      default: false
 outputs: []
 dependencies: []

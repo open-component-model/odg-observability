@@ -1,0 +1,113 @@
+{{- if .Values.alertmanager.enabled }}
+{{- $name := "alertmanager" }}
+
+apiVersion: monitoring.coreos.com/v1
+kind: Alertmanager
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+  labels:
+    app: {{ $name }}
+spec:
+  image: {{ include "image" .Values.alertmanager.image }}
+  version: {{ .Values.alertmanager.image.tag }}
+  containers:
+    - name: config-reloader
+      image: {{ include "image" (index .Values "prometheus-config-reloader" "image") }}
+  initContainers:
+    - name: init-config-reloader
+      image: {{ include "image" (index .Values "prometheus-config-reloader" "image") }}
+  replicas: 1
+  alertmanagerConfigMatcherStrategy:
+    type: None
+  alertmanagerConfigSelector:
+    matchLabels:
+      app: {{ $name }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-alertmanager
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+type: Opaque
+stringData:
+  alertmanager.yaml: |
+    global: {}
+    route:
+      receiver: "null"
+      routes: []
+    receivers:
+      - name: "null"
+{{- if .Values.alertmanager.slack.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: slack
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+  labels:
+    app: {{ $name }}
+spec:
+  route:
+    receiver: slack
+    groupBy: [alertname]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 12h
+  receivers:
+    - name: slack
+      slackConfigs:
+        - channel: {{ .Values.alertmanager.slack.channel | required "alertmanager.slack.channel is required" | quote }}
+          apiURL:
+            name: alertmanager-slack
+            key: apiURL
+          httpConfig:
+            authorization:
+              credentials:
+                name: alertmanager-slack
+                key: token
+          sendResolved: true
+          title: {{ .Values.alertmanager.slack.title | toYaml | indent 10 | trim }}
+          text: {{ .Values.alertmanager.slack.text | toYaml | indent 10 | trim }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-slack
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+type: Opaque
+stringData:
+  apiURL: {{ .Values.alertmanager.slack.apiURL | required "alertmanager.slack.apiURL is required" | quote }}
+  token: {{ .Values.alertmanager.slack.token | required "alertmanager.slack.token is required" | quote }}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-from-alertmanager
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  policyTypes:
+    - Egress
+  egress:
+    - {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-alertmanager
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 9093
+{{- end }}

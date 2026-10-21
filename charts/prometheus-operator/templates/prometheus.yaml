@@ -16,6 +16,9 @@ spec:
   scrapeConfigSelector:
     matchLabels:
       app: {{ $podName }}
+  ruleSelector:
+    matchLabels:
+      app: {{ $podName }}
   image: {{ include "image" .Values.prometheus.image }}
   version: {{ .Values.prometheus.image.tag }}
   containers:
@@ -24,6 +27,13 @@ spec:
   initContainers:
   - name: init-config-reloader
     image: {{ include "image" (index .Values "prometheus-config-reloader" "image") }} # indexing required since `-` is not allowed in variable names
+  {{- if .Values.alertmanager.enabled }}
+  alerting:
+    alertmanagers:
+      - namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+        name: alertmanager-operated
+        port: web
+  {{- end }}
   resources:
     requests:
       memory: 500Mi

@@ -87,3 +87,7 @@ jobs:
           attribute: prometheus-config-reloader.image.repository
         - ref: ocm-resource:prometheus-config-reloader.tag
           attribute: prometheus-config-reloader.image.tag
+        - ref: ocm-resource:alertmanager.repository
+          attribute: alertmanager.image.repository
+        - ref: ocm-resource:alertmanager.tag
+          attribute: alertmanager.image.tag

@@ -16,3 +16,22 @@ prometheus-config-reloader:
     tag: ~
 
 scrapeInterval: 15s
+
+alertmanager:
+  enabled: false
+  image:
+    repository: ~
+    tag: ~
+  slack:
+    enabled: false
+    apiURL: https://slack.com/api/chat.postMessage
+    channel: ~
+    token: ~
+    title: |-
+      [{{ "{{" }} .Status | toUpper {{ "}}" }}{{ "{{" }} if eq .Status "firing" {{ "}}" }}:{{ "{{" }} .Alerts.Firing | len {{ "}}" }}{{ "{{" }} end {{ "}}" }}] {{ "{{" }} .CommonLabels.alertname {{ "}}" }}
+    text: |-
+      {{ "{{" }} range .Alerts {{ "}}" }}*Alert:* {{ "{{" }} .Annotations.summary {{ "}}" }}{{ "{{" }} if .Annotations.description {{ "}}" }}
+      *Description:* {{ "{{" }} .Annotations.description {{ "}}" }}{{ "{{" }} end {{ "}}" }}
+      *Severity:* {{ "{{" }} .Labels.severity {{ "}}" }}
+      *Namespace:* {{ "{{" }} .Labels.namespace {{ "}}" }}
+      {{ "{{" }} end {{ "}}" }}
