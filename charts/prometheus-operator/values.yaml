@@ -38,7 +38,9 @@ kube-state-metrics:
     monitor:
       # we create our own ServiceMonitor (see this chart's templates/)
       enabled: false
-  # keep namespace-scoped collectors minimal by default; flip on if needed
+  # watch only the namespace this chart is deployed into; set to false to watch all namespaces
+  releaseNamespace: true
+  # keep namespace-scoped collectors minimal; drop cluster-wide resources not needed for pod health
   collectors:
     - pods
     - deployments
@@ -47,11 +49,3 @@ kube-state-metrics:
     - replicasets
     - jobs
     - cronjobs
-    - nodes
-    - namespaces
-    - persistentvolumeclaims
-    - persistentvolumes
-    - services
-    - endpointslices
-    - resourcequotas
-    - limitranges
