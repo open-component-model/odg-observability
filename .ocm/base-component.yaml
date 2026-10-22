@@ -34,6 +34,7 @@ resources:
     access:
       type: ociRegistry
       imageReference: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0
+    relation: external
 labels:
   - name: odg.ocm.software/responsibles
     value:
