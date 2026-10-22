@@ -9,7 +9,9 @@ metadata:
     app: {{ $podName }}
 spec:
   serviceAccountName: prometheus
-  serviceMonitorNamespaceSelector: {}
+  serviceMonitorNamespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: {{ .Values.target_namespace | default .Release.Namespace }}
   serviceMonitorSelector:
     matchLabels:
       app: {{ $podName }}
