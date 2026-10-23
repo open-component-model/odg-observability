@@ -1,0 +1,35 @@
+{{- if .Values.metrics.enabled }}
+# Which resources to count, evaluated by the bundled metrics-operator, pushed
+# via the "default" DataSink to this chart's collector.
+# NOTE (metrics-operator v1.2.1): Metric CRs are listed CLUSTER-WIDE — the CRD
+# has no namespace field and the operator never scopes List calls. We therefore
+# project metadata.namespace into a label (`resource_namespace`) so PromQL can
+# filter per namespace. The CR itself lives in .Release.Namespace merely because
+# Helm requires namespaced resources.
+# Projections: pod name is intentionally NOT projected — every pod = one series
+# with value 1, useless for counting. Aggregate instead:
+#   count(k8s_pods_running)                                  cluster-wide total
+#   count by (resource_namespace)(k8s_pods_running)          per namespace
+---
+apiVersion: metrics.open-control-plane.io/v1alpha1
+kind: Metric
+metadata:
+  name: k8s-pods-running
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+spec:
+  name: k8s_pods_running
+  description: Running pods, cluster-wide (metrics-operator v1.2.1 has no ns scoping); filter by resource_namespace
+  interval: {{ .Values.metrics.interval | quote }}
+  target:
+    group: ""
+    version: v1
+    kind: Pod
+  dataSinkRef:
+    name: default
+  fieldSelector: "status.phase=Running"
+  projections:
+    - name: resource_namespace
+      fieldPath: metadata.namespace
+{{- end }}

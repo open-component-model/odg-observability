@@ -1,0 +1,168 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "opentelemetry-collector.fullname" . }}-override
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "opentelemetry-collector.labels" . | nindent 4 }}
+data:
+  relay: |
+    {{- if .Values.configOverride }}
+    # Full override — user owns the whole collector config (see values.configOverride).
+    {{ .Values.configOverride | nindent 4 }}
+    {{- else }}
+    extensions:
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+
+    receivers:
+      filelog:
+        # keep self-observation quiet: don't ship the collector's own logs
+        exclude:
+          - /var/log/pods/{{ .Values.observedNamespace }}_{{ include "opentelemetry-collector.fullname" . }}-agent-*/*/*.log
+        include:
+          - /var/log/pods/{{ .Values.observedNamespace }}_*/*/*.log
+        start_at: end
+        include_file_path: true   # container-parser's add_metadata_from_filepath needs this
+        operators:
+          - id: container-parser
+            type: container
+            add_metadata_from_filepath: true
+          # structlog-style JSON bodies become searchable attributes; plain text passes through
+          - id: json-parser
+            type: json_parser
+            if: 'body matches "^{"'
+      otlp:
+        protocols:
+          grpc:
+            endpoint: "0.0.0.0:4317"
+      hostmetrics:
+        collection_interval: 30s
+        scrapers:
+          cpu:
+            metrics:
+              system.cpu.utilization: { enabled: true }
+          memory:
+            metrics:
+              system.memory.utilization: { enabled: true }
+
+    processors:
+      k8sattributes:
+        auth_type: serviceAccount
+        filter:
+          namespace: {{ .Values.observedNamespace | quote }}
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+        extract:
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.deployment.name
+            - k8s.container.name
+          {{- if .Values.annotationKey }}
+          annotations:
+            - key: {{ .Values.annotationKey | quote }}
+              from: pod
+          {{- end }}
+      {{- if .Values.annotationKey }}
+      # annotation gate — pods without {{ .Values.annotationKey }}: "true" are dropped
+      filter/only_annotated:
+        error_mode: ignore
+        logs:
+          log_record:
+            - 'resource.attributes["k8s.pod.annotation.{{ .Values.annotationKey }}"] != "true"'
+      {{- end }}
+      batch:
+        timeout: 5s
+        send_batch_size: 1024
+        send_batch_max_size: 2048
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+        spike_limit_mib: 128
+
+    exporters:
+      # scraped by a Prometheus; resource attrs (k8s.pod.name, ...) become metric labels
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+        resource_to_telemetry_conversion:
+          enabled: true
+      {{- if and .Values.debugVerbosity (eq .Values.backend "debug") }}
+      # debug exporter only when backend=debug: when pushing to btp/opensearch,
+      # those exporters are the destination, debug output is noise.
+      debug:
+        verbosity: {{ .Values.debugVerbosity }}
+      {{- end }}
+      {{- if eq .Values.backend "opensearch" }}
+      opensearch/logs:
+        http:
+          endpoint: {{ required "opensearch.endpoint is required when backend=opensearch" .Values.opensearch.endpoint | quote }}
+        logs_index: {{ .Values.opensearch.logsIndex | quote }}
+      opensearch/traces:
+        http:
+          endpoint: {{ .Values.opensearch.endpoint | quote }}
+        traces_index: {{ .Values.opensearch.tracesIndex | quote }}
+      {{- end }}
+      {{- if eq .Values.backend "btp" }}
+      # BTP Cloud Logging: OTLP gRPC with mTLS; certs mounted from values.btp.certsSecret
+      otlp/btp:
+        endpoint: {{ required "btp.endpoint is required when backend=btp" .Values.btp.endpoint | quote }}
+        tls:
+          ca_file: /etc/ssl/certs/btp/ca.crt
+          cert_file: /etc/ssl/certs/btp/tls.crt
+          key_file: /etc/ssl/certs/btp/tls.key
+        # BTP DNS returns multiple IPs; round_robin cycles past a stale one on reconnect.
+        balancer_name: round_robin
+      {{- end }}
+
+    service:
+      extensions: [health_check]
+      telemetry:
+        metrics:
+          level: basic
+      pipelines:
+        logs:
+          receivers: [filelog]
+          processors:
+            - memory_limiter
+            - k8sattributes
+            {{- if .Values.annotationKey }}
+            - filter/only_annotated
+            {{- end }}
+            - batch
+          exporters:
+            {{- if eq .Values.backend "opensearch" }}
+            - opensearch/logs
+            {{- else if eq .Values.backend "btp" }}
+            - otlp/btp
+            {{- end }}
+            {{- if and .Values.debugVerbosity (eq .Values.backend "debug") }}
+            - debug
+            {{- end }}
+
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters:
+            {{- if eq .Values.backend "opensearch" }}
+            - opensearch/traces
+            {{- else if eq .Values.backend "btp" }}
+            - otlp/btp
+            {{- end }}
+            {{- if and .Values.debugVerbosity (eq .Values.backend "debug") }}
+            - debug
+            {{- end }}
+
+        metrics:
+          receivers: [otlp, hostmetrics]
+          processors: [memory_limiter, batch]
+          # metrics always go to the in-cluster Prometheus exporter; never pushed
+          # to BTP/OpenSearch (their logs/traces indices are not the right shape).
+          exporters:
+            - prometheus
+            {{- if and .Values.debugVerbosity (eq .Values.backend "debug") }}
+            - debug
+            {{- end }}
+    {{- end }}

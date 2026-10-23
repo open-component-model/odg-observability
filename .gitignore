@@ -1,2 +1,16 @@
+# Build artifacts from 'helm dependency build' - regenerate via Chart.yaml
+charts/*/charts/*
+
+# Helm package tars
+*.tgz
+
+# Exception: vendored subchart tarballs that consumers shouldn't re-pull (kept tracked)
+!charts/prometheus-operator/charts/kube-state-metrics-*.tgz
+!charts/telemetry/charts/opentelemetry-collector-*.tgz
+!charts/telemetry/charts/metrics-operator-*.tgz
+
+# Values backups
+.local-values
+
 # macOS
 .DS_Store

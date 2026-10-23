@@ -1,0 +1,15 @@
+{{- if .Values.metrics.enabled }}
+# In-cluster OTLP push target for the bundled metrics-operator: this chart's
+# collector Service. The operator counts target resources and pushes gauges to
+# :4317; the collector re-exports on :8889 (prometheusExporter).
+apiVersion: metrics.open-control-plane.io/v1alpha1
+kind: DataSink
+metadata:
+  name: default
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+spec:
+  connection:
+    endpoint: grpc://{{ include "telemetry.collectorServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local:4317
+{{- end }}

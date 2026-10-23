@@ -1,0 +1,75 @@
+# ODG's bootstrapping chart ships a namespace-wide default-deny NetworkPolicy on
+# workload clusters. Without these the collector can't be reached (4317/4318/8889)
+# and the metrics-operator can't reach its dependencies.
+# Managed here (not via subchart extraManifests) so metric/observability wiring
+# lives in one place; supersedes the overlay previously applied by
+# service-provider-odg/local-telemetry/telemetry.sh (removed there).
+# Pod selectors must match the subchart's own labels (name + instance).
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-otel-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - { port: 4317, protocol: TCP }
+        - { port: 4318, protocol: TCP }
+        - { port: 8889, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-from-otel-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Egress]
+  egress:
+    # Private IPs only: pods (10.244.0.0/24 kind, 10.0.0.0/8 gardener), services
+    # (10.96.0.0/12), kube-dns, API server ClusterIP. Covers all common CNI
+    # layouts without hardcoding the API server IP.
+    - to:
+        - ipBlock: { cidr: 10.0.0.0/8 }
+        - ipBlock: { cidr: 172.16.0.0/12 }
+        - ipBlock: { cidr: 192.168.0.0/16 }
+{{- if eq .Values.backend "btp" }}
+    # BTP Cloud Logging ingest-otlp endpoint is public-facing. Its IPs rotate
+    # (SAP CLS is multi-region); only TCP/443 is needed. DNS stays covered by the
+    # private-CIDR rule above (kube-dns is in-cluster).
+    - to:
+        - ipBlock: { cidr: 0.0.0.0/0 }
+      ports:
+        - { port: 443, protocol: TCP }
+{{- end }}
+{{- if .Values.metrics.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-from-metrics-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: metrics-operator
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Egress]
+  egress:
+    - {}   # any: SAP service CIDRs are not RFC1918-stable (gardener/BTP vary)
+{{- end }}

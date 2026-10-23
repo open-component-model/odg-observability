@@ -1,0 +1,13 @@
+apiVersion: v2
+name: telemetry
+description: ODG telemetry umbrella — OTel collector daemonset (filelog/k8sattributes/hostmetrics), metrics-operator, DataSink + Metric CRs. Backends via one switch.
+type: application
+version: 0.1.0
+dependencies:
+  - name: opentelemetry-collector
+    version: 0.177.0
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  - name: metrics-operator
+    version: v1.2.1
+    repository: oci://ghcr.io/openmcp-project/charts
+    condition: metrics-operator.enabled

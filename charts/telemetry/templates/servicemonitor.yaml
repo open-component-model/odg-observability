@@ -1,0 +1,21 @@
+{{- if .Values.prometheus.integration.enabled }}
+# Exposes the otel-collector's :8889 prometheus exporter to the sibling
+# prometheus-operator chart. Its Prometheus CR selects ServiceMonitors by the
+# label `app: prometheus` (see charts/prometheus-operator/templates/prometheus.yaml).
+# Requires the metrics service port to stay named `metrics` (see values.yaml).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector-metrics
+  namespace: {{ .Values.target_namespace | default .Values.observedNamespace | default .Release.Namespace }}
+  labels:
+    app: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.prometheus.integration.scrapeInterval | default "15s" }}
+{{- end }}

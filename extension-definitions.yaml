@@ -23,3 +23,46 @@ installation:
       default: false
 outputs: []
 dependencies: []
+
+---
+
+name: telemetry
+installation:
+  ocm_references:
+    - helm_chart_name: telemetry
+      name: ocm.software/open-delivery-gear/observability
+      version: 0.36.0-dev
+      artefact:
+        name: telemetry
+        version: 0.36.0-dev
+      mappings:
+        - name: telemetry
+          version: 0.36.0-dev
+          artefact_type: helmchart-imagemap
+  value_templates:
+    - helm_chart_name: telemetry
+      helm_attribute: observedNamespace
+      value: ${target_namespace}
+      value_type: python-string-template
+    - helm_chart_name: telemetry
+      helm_attribute: backend
+      value: ${telemetry_backend}
+      value_type: python-string-template
+      default: debug
+    - helm_chart_name: telemetry
+      helm_attribute: opensearch.endpoint
+      value: ${opensearch_endpoint}
+      value_type: python-string-template
+      default: ""
+    - helm_chart_name: telemetry
+      helm_attribute: btp.endpoint
+      value: ${btp_endpoint}
+      value_type: python-string-template
+      default: ""
+    - helm_chart_name: telemetry
+      helm_attribute: btp.certsSecret
+      value: ${btp_certs_secret}
+      value_type: python-string-template
+      default: ""
+outputs: []
+dependencies: []

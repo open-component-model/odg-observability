@@ -1,0 +1,31 @@
+{{- if .Values.metrics.backlogItem }}
+# Extra ClusterRole rules so the bundled metrics-operator can enumerate the
+# backlogitems CRD when a Metric CR targets it. Keeps the rule opt-in via
+# metrics.backlogItem because the CRD is not present in every landscape.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-metrics-operator-backlogitems
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["odg.open-delivery-gear.ocm.software"]
+    resources: ["backlogitems"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-metrics-operator-backlogitems
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-metrics-operator-backlogitems
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-metrics-operator
+    namespace: {{ .Release.Namespace }}
+{{- end }}

@@ -69,29 +69,46 @@ jobs:
       contents: read
       packages: write
       id-token: write
+    strategy:
+      matrix:
+        args:
+          - name: prometheus-operator
+            dir: charts/prometheus-operator
+            mappings:
+              - ref: ocm-resource:prometheus-operator.repository
+                attribute: image.repository
+              - ref: ocm-resource:prometheus-operator.tag
+                attribute: image.tag
+              - ref: ocm-resource:prometheus.repository
+                attribute: prometheus.image.repository
+              - ref: ocm-resource:prometheus.tag
+                attribute: prometheus.image.tag
+              - ref: ocm-resource:prometheus-config-reloader.repository
+                attribute: prometheus-config-reloader.image.repository
+              - ref: ocm-resource:prometheus-config-reloader.tag
+                attribute: prometheus-config-reloader.image.tag
+              - ref: ocm-resource:alertmanager.repository
+                attribute: alertmanager.image.repository
+              - ref: ocm-resource:alertmanager.tag
+                attribute: alertmanager.image.tag
+              - ref: ocm-resource:kube-state-metrics.repository
+                attribute: kube-state-metrics.image.repository
+              - ref: ocm-resource:kube-state-metrics.tag
+                attribute: kube-state-metrics.image.tag
+          - name: telemetry
+            dir: charts/telemetry
+            mappings:
+              - ref: ocm-resource:opentelemetry-collector-contrib.repository
+                attribute: opentelemetry-collector.image.repository
+              - ref: ocm-resource:opentelemetry-collector-contrib.tag
+                attribute: opentelemetry-collector.image.tag
+              - ref: ocm-resource:metrics-operator.repository
+                attribute: metrics-operator.image.repository
+              - ref: ocm-resource:metrics-operator.tag
+                attribute: metrics-operator.image.tag
     with:
-      name: prometheus-operator
-      dir: charts/prometheus-operator
+      name: ${{ matrix.args.name }}
+      dir: ${{ matrix.args.dir }}
       oci-registry: ${{ needs.prepare.outputs.oci-registry }}
       oci-repository: charts/odg
-      ocm-mappings: |
-        - ref: ocm-resource:prometheus-operator.repository
-          attribute: image.repository
-        - ref: ocm-resource:prometheus-operator.tag
-          attribute: image.tag
-        - ref: ocm-resource:prometheus.repository
-          attribute: prometheus.image.repository
-        - ref: ocm-resource:prometheus.tag
-          attribute: prometheus.image.tag
-        - ref: ocm-resource:prometheus-config-reloader.repository
-          attribute: prometheus-config-reloader.image.repository
-        - ref: ocm-resource:prometheus-config-reloader.tag
-          attribute: prometheus-config-reloader.image.tag
-        - ref: ocm-resource:alertmanager.repository
-          attribute: alertmanager.image.repository
-        - ref: ocm-resource:alertmanager.tag
-          attribute: alertmanager.image.tag
-        - ref: ocm-resource:kube-state-metrics.repository
-          attribute: kube-state-metrics.image.repository
-        - ref: ocm-resource:kube-state-metrics.tag
-          attribute: kube-state-metrics.image.tag
+      ocm-mappings: ${{ toJSON(matrix.args.mappings) }}

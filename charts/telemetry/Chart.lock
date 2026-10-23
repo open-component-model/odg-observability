@@ -1,0 +1,9 @@
+dependencies:
+- name: opentelemetry-collector
+  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  version: 0.177.0
+- name: metrics-operator
+  repository: oci://ghcr.io/openmcp-project/charts
+  version: v1.2.1
+digest: sha256:0b9fbcd3eedaee1397568a7e3f4014453b9639e105a6ff30d259d5a383d0738c
+generated: "2026-10-23T14:31:19.575224+02:00"
