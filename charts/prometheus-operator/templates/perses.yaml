@@ -1,0 +1,90 @@
+{{- if .Values.perses.enabled }}
+# Prometheus datasource and network policies for the perses subchart.
+
+# Dashboards/datasources are provisioned via ConfigMaps labeled
+# perses.dev/resource: "true" in this namespace (picked up by the perses sidecar).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: perses-datasource-prometheus
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+  labels:
+    perses.dev/resource: "true"
+data:
+  # sorted before the dashboards/ files by the provisioner, so the project exists first
+  00-project-odg.yaml: |
+    kind: Project
+    metadata:
+      name: odg
+  datasource-prometheus.yaml: |
+    kind: Datasource
+    metadata:
+      project: odg
+      name: prometheus
+      default: true
+    spec:
+      plugin:
+        kind: PrometheusDatasource
+        spec:
+          proxy:
+            kind: HTTPProxy
+            spec:
+              url: http://prometheus-operated:9090
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-from-perses
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      # the perses subchart is referenced with alias `perses-app` (see Chart.yaml), which
+      # also sets the pod labels
+      app.kubernetes.io/name: perses-app
+  policyTypes:
+    - Egress
+  egress:
+    - {}  # Allows all egress traffic to any destination and port
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-perses
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      # the perses subchart is referenced with alias `perses-app` (see Chart.yaml), which
+      # also sets the pod labels
+      app.kubernetes.io/name: perses-app
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8080
+---
+# perses is a datasource *client* of prometheus — allow traffic into prometheus from
+# perses pods. Prometheus's own allow-ingress-to-prometheus policy accepts the port but
+# leaves `from` unrestricted; this policy scopes it down to just perses.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-prometheus-from-perses
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: perses-app
+      ports:
+        - protocol: TCP
+          port: 9090
+{{- end }}

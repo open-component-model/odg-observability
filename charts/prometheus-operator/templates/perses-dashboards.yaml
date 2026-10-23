@@ -1,0 +1,20 @@
+{{- if .Values.perses.enabled }}
+# One ConfigMap per dashboard file in dashboards/. The perses sidecar loads any ConfigMap
+# labeled perses.dev/resource: "true" into /etc/perses/provisioning, so dashboards join the
+# "prometheus" datasource (templates/perses.yaml) as provisioning. File name must match the
+# dashboard metadata.name: dashboards/<name>.yaml (perses provisioning reads .yaml and .json,
+# we use yaml for diff-friendliness).
+{{- range $path, $_ := .Files.Glob "dashboards/*.yaml" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: perses-dashboard-{{ base $path | trimSuffix ".yaml" }}
+  namespace: {{ $.Values.target_namespace | default $.Release.Namespace }}
+  labels:
+    perses.dev/resource: "true"
+data:
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}
+{{- end }}

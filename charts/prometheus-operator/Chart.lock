@@ -2,5 +2,8 @@ dependencies:
 - name: kube-state-metrics
   repository: oci://ghcr.io/prometheus-community/charts
   version: 8.6.0
-digest: sha256:979719bfd2742d23bddda9d509c46e5cf205ae52d0831e9b8c448a576b770f6a
-generated: "2026-10-21T14:11:32.174495+02:00"
+- name: perses
+  repository: https://perses.github.io/helm-charts
+  version: 0.23.3
+digest: sha256:92e0ae17ef2596d8db4f4a4f1a14893fb2a2313f6963ba29ec0b9c6d35955d03
+generated: "2026-10-23T13:28:22.02563+02:00"

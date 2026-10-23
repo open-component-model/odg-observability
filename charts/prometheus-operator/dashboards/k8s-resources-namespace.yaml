@@ -1,0 +1,618 @@
+kind: Dashboard
+metadata:
+  name: k8s-resources-namespace
+  project: odg
+  title: Kubernetes / Compute Resources / Namespace (Pods)
+spec:
+  display:
+    name: Kubernetes / Compute Resources / Namespace (Pods)
+  duration: 1h
+  variables:
+  - kind: ListVariable
+    spec:
+      name: namespace
+      display:
+        name: Namespace
+      allowAllValue: false
+      allowMultiple: false
+      plugin:
+        kind: PrometheusLabelValuesVariable
+        spec:
+          datasource:
+            kind: PrometheusDatasource
+            name: prometheus
+          labelName: namespace
+          matchers:
+          - container_memory_working_set_bytes{container!=""}
+  panels:
+    cpu_util_requests:
+      kind: Panel
+      spec:
+        display:
+          name: CPU Utilisation (from requests)
+        plugin:
+          kind: StatChart
+          spec:
+            format:
+              unit: percent-decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum(rate(container_cpu_usage_seconds_total{namespace="$namespace", container!="", container!="POD"}[$__rate_interval]))
+                  / sum(kube_pod_container_resource_requests{namespace="$namespace", resource="cpu", container!=""})
+    cpu_util_limits:
+      kind: Panel
+      spec:
+        display:
+          name: CPU Utilisation (from limits)
+        plugin:
+          kind: StatChart
+          spec:
+            format:
+              unit: percent-decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum(rate(container_cpu_usage_seconds_total{namespace="$namespace", container!="", container!="POD"}[$__rate_interval]))
+                  / sum(kube_pod_container_resource_limits{namespace="$namespace", resource="cpu", container!=""})
+    mem_util_requests:
+      kind: Panel
+      spec:
+        display:
+          name: Memory Utilisation (from requests)
+        plugin:
+          kind: StatChart
+          spec:
+            format:
+              unit: percent-decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum(container_memory_working_set_bytes{namespace="$namespace", container!="", image!=""}) / sum(kube_pod_container_resource_requests{namespace="$namespace",
+                  resource="memory", container!=""})
+    mem_util_limits:
+      kind: Panel
+      spec:
+        display:
+          name: Memory Utilisation (from limits)
+        plugin:
+          kind: StatChart
+          spec:
+            format:
+              unit: percent-decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum(container_memory_working_set_bytes{namespace="$namespace", container!="", image!=""}) / sum(kube_pod_container_resource_limits{namespace="$namespace",
+                  resource="memory", container!=""})
+    cpu_usage:
+      kind: Panel
+      spec:
+        display:
+          name: CPU Usage (millicores)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: decimal
+                decimalPlaces: 1
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (rate(container_cpu_usage_seconds_total{namespace="$namespace", container!="", container!="POD"}[$__rate_interval]))
+                  * 1000
+                seriesNameFormat: '{{pod}}'
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: scalar(max(kube_resourcequota{namespace="$namespace", type="hard", resource="requests.cpu"})) * 1000
+                seriesNameFormat: quota - requests
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: scalar(max(kube_resourcequota{namespace="$namespace", type="hard", resource="limits.cpu"})) * 1000
+                seriesNameFormat: quota - limits
+    cpu_requests_per_pod:
+      kind: Panel
+      spec:
+        display:
+          name: CPU Requests by Pod (millicores)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: decimal
+                decimalPlaces: 1
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (kube_pod_container_resource_requests{namespace="$namespace", resource="cpu", container!=""})
+                  * 1000
+                seriesNameFormat: '{{pod}} requests'
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (kube_pod_container_resource_limits{namespace="$namespace", resource="cpu", container!=""})
+                  * 1000
+                seriesNameFormat: '{{pod}} limits'
+    memory_usage:
+      kind: Panel
+      spec:
+        display:
+          name: Memory Usage (WSS)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: bytes
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (container_memory_working_set_bytes{namespace="$namespace", container!="", image!=""})
+                seriesNameFormat: '{{pod}}'
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: scalar(max(kube_resourcequota{namespace="$namespace", type="hard", resource="requests.memory"}))
+                seriesNameFormat: quota - requests
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: scalar(max(kube_resourcequota{namespace="$namespace", type="hard", resource="limits.memory"}))
+                seriesNameFormat: quota - limits
+    memory_requests_per_pod:
+      kind: Panel
+      spec:
+        display:
+          name: Memory Requests by Pod
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: bytes
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (kube_pod_container_resource_requests{namespace="$namespace", resource="memory", container!=""})
+                seriesNameFormat: '{{pod}} requests'
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (kube_pod_container_resource_limits{namespace="$namespace", resource="memory", container!=""})
+                seriesNameFormat: '{{pod}} limits'
+    net_receive:
+      kind: Panel
+      spec:
+        display:
+          name: Receive Bandwidth
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: bytes/sec
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (rate(container_network_receive_bytes_total{namespace="$namespace"}[$__rate_interval]))
+                seriesNameFormat: '{{pod}}'
+    net_transmit:
+      kind: Panel
+      spec:
+        display:
+          name: Transmit Bandwidth
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: bytes/sec
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (rate(container_network_transmit_bytes_total{namespace="$namespace"}[$__rate_interval]))
+                seriesNameFormat: '{{pod}}'
+    net_receive_packets:
+      kind: Panel
+      spec:
+        display:
+          name: Rate of Received Packets
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (rate(container_network_receive_packets_total{namespace="$namespace"}[$__rate_interval]))
+                seriesNameFormat: '{{pod}}'
+    net_transmit_packets:
+      kind: Panel
+      spec:
+        display:
+          name: Rate of Transmitted Packets
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (rate(container_network_transmit_packets_total{namespace="$namespace"}[$__rate_interval]))
+                seriesNameFormat: '{{pod}}'
+    net_receive_dropped:
+      kind: Panel
+      spec:
+        display:
+          name: Rate of Received Packets Dropped
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (rate(container_network_receive_packets_dropped_total{namespace="$namespace"}[$__rate_interval]))
+                seriesNameFormat: '{{pod}}'
+    net_transmit_dropped:
+      kind: Panel
+      spec:
+        display:
+          name: Rate of Transmitted Packets Dropped
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (pod) (rate(container_network_transmit_packets_dropped_total{namespace="$namespace"}[$__rate_interval]))
+                seriesNameFormat: '{{pod}}'
+    iops:
+      kind: Panel
+      spec:
+        display:
+          name: IOPS (Reads + Writes)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: "ceil(sum by (pod) (\n  rate(container_fs_reads_total{namespace=\"$namespace\", container!=\"\", device=~\"\
+                  (/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\"}[$__rate_interval])\n  + rate(container_fs_writes_total{namespace=\"\
+                  $namespace\", container!=\"\", device=~\"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\"\
+                  }[$__rate_interval])\n))"
+                seriesNameFormat: '{{pod}}'
+    throughput:
+      kind: Panel
+      spec:
+        display:
+          name: Throughput (Read + Write)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: bytes/sec
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: "sum by (pod) (\n  rate(container_fs_reads_bytes_total{namespace=\"$namespace\", container!=\"\", device=~\"\
+                  (/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\"}[$__rate_interval])\n  + rate(container_fs_writes_bytes_total{namespace=\"\
+                  $namespace\", container!=\"\", device=~\"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)\"\
+                  }[$__rate_interval])\n)"
+                seriesNameFormat: '{{pod}}'
+  layouts:
+  - kind: Grid
+    spec:
+      items:
+      - x: 0
+        y: 0
+        width: 6
+        height: 3
+        content:
+          $ref: '#/spec/panels/cpu_util_requests'
+      - x: 6
+        y: 0
+        width: 6
+        height: 3
+        content:
+          $ref: '#/spec/panels/cpu_util_limits'
+      - x: 12
+        y: 0
+        width: 6
+        height: 3
+        content:
+          $ref: '#/spec/panels/mem_util_requests'
+      - x: 18
+        y: 0
+        width: 6
+        height: 3
+        content:
+          $ref: '#/spec/panels/mem_util_limits'
+      - x: 0
+        y: 3
+        width: 24
+        height: 10
+        content:
+          $ref: '#/spec/panels/cpu_usage'
+      - x: 0
+        y: 13
+        width: 24
+        height: 10
+        content:
+          $ref: '#/spec/panels/cpu_requests_per_pod'
+      - x: 0
+        y: 23
+        width: 24
+        height: 10
+        content:
+          $ref: '#/spec/panels/memory_usage'
+      - x: 0
+        y: 33
+        width: 24
+        height: 10
+        content:
+          $ref: '#/spec/panels/memory_requests_per_pod'
+      - x: 0
+        y: 43
+        width: 12
+        height: 10
+        content:
+          $ref: '#/spec/panels/net_receive'
+      - x: 12
+        y: 43
+        width: 12
+        height: 10
+        content:
+          $ref: '#/spec/panels/net_transmit'
+      - x: 0
+        y: 53
+        width: 12
+        height: 10
+        content:
+          $ref: '#/spec/panels/net_receive_packets'
+      - x: 12
+        y: 53
+        width: 12
+        height: 10
+        content:
+          $ref: '#/spec/panels/net_transmit_packets'
+      - x: 0
+        y: 63
+        width: 12
+        height: 10
+        content:
+          $ref: '#/spec/panels/net_receive_dropped'
+      - x: 12
+        y: 63
+        width: 12
+        height: 10
+        content:
+          $ref: '#/spec/panels/net_transmit_dropped'
+      - x: 0
+        y: 73
+        width: 12
+        height: 10
+        content:
+          $ref: '#/spec/panels/iops'
+      - x: 12
+        y: 73
+        width: 12
+        height: 10
+        content:
+          $ref: '#/spec/panels/throughput'

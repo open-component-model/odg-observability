@@ -69,3 +69,81 @@ kube-state-metrics:
     - replicasets
     - jobs
     - cronjobs
+
+# Master switch for perses. When disabled, the entire perses-app block below and the
+# templates/perses{,-dashboards}.yaml manifests are skipped (the dashboard files under
+# dashboards/ become inert). Enable after first installing with CRDs, since its
+# ServiceMonitor targets CRDs from crds/.
+perses:
+  enabled: false
+
+# perses subchart configuration (see https://artifacthub.io/packages/helm/perses/perses).
+# The vendored chart (charts/perses-*.tgz) carries the ODG patch applied by
+# scripts/patch-perses-chart.sh: the inline image assembly in statefulset.yaml is replaced
+# with {{ include "perses-app.image" / "perses-app.sidecar.image" }}, resolved by the vendored
+# helpers/_odg.tpl. When set, the flat `.repository`/`.tag` below are used verbatim (OCM
+# relocation); when empty the chart's registry/name/version defaults apply.
+# Re-run the script after every perses chart bump (Renovate postUpgradeTask).
+perses-app:
+  image:
+    # image property will be set during release (flat "host/path/image" + tag, like the
+    # other images in this chart)
+    repository: ~
+    tag: ~
+    # defaults used when repository/tag are not set (match the ociImage entries in
+    # .ocm/base-component.yaml)
+    registry: docker.io
+    name: persesdev/perses
+    # version: defaults to the chart appVersion (v0.54.0 for chart 0.23.3)
+  # the sidecar watches ConfigMaps labeled perses.dev/resource: "true" in this namespace
+  # and drops them into /etc/perses/provisioning, where perses picks them up (dashboards from
+  # dashboards/*.yaml via templates/perses-dashboards.yaml, datasource in
+  # templates/perses.yaml); the chart is CRD-less — PersesDashboard CRDs belong to the
+  # separate perses-operator project
+  sidecar:
+    enabled: true
+    # only watch our own namespace
+    allNamespaces: false
+    image:
+      # flat "host/path/image" + tag; overwritten by OCM relocation. When repository
+      # contains a registry (i.e. the default below), the helper uses it verbatim, so keep
+      # it in sync with the ociImage entry in .ocm/base-component.yaml.
+      repository: docker.io/kiwigrid/k8s-sidecar
+      tag: 2.13.3
+    resources:
+      requests:
+        memory: 64Mi
+        cpu: 10m
+      limits:
+        memory: 128Mi
+  # labels on the Service so our own ServiceMonitor (templates/servicemonitors.yaml)
+  # can select it
+  service:
+    labels:
+      monitoring: perses
+  # perses is stateful: dashboards/datasources live in a file DB on a PVC
+  persistence:
+    enabled: true
+  config:
+    provisioning:
+      folders:
+        - /etc/perses/provisioning
+      # perses applies provisioning files on this interval; the sidecar copies ConfigMaps
+      # into the folder within ~1s, but perses doesn't watch the filesystem, so dashboards
+      # can only appear at this cadence (or on pod restart). 1m keeps first-boot UX usable.
+      interval: 1m
+    security:
+      enable_auth: false
+      readonly: false
+  resources:
+    # memory: dashboards, cached provisioning + file-DB state in memory
+    # cpu: dashboard queries proxy Prometheus, so requests matter; no limits so it can burst
+    requests:
+      memory: 256Mi
+      cpu: 50m
+    limits:
+      memory: 512Mi
+  testFramework:
+    # the chart ships helm-test hooks; we don't run `helm test`, and `helm template` would
+    # apply them as regular pods otherwise
+    enabled: false

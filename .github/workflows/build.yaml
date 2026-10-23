@@ -95,3 +95,14 @@ jobs:
           attribute: kube-state-metrics.image.repository
         - ref: ocm-resource:kube-state-metrics.tag
           attribute: kube-state-metrics.image.tag
+        # perses is vendored with our patch (scripts/patch-perses-chart.sh) that swaps the
+        # inline image assembly for `perses-app.image` / `perses-app.sidecar.image` helpers
+        # consuming the flat `host/path/image` format, like the other images in this chart
+        - ref: ocm-resource:perses.repository
+          attribute: perses-app.image.repository
+        - ref: ocm-resource:perses.tag
+          attribute: perses-app.image.tag
+        - ref: ocm-resource:k8s-sidecar.repository
+          attribute: perses-app.sidecar.image.repository
+        - ref: ocm-resource:k8s-sidecar.tag
+          attribute: perses-app.sidecar.image.tag

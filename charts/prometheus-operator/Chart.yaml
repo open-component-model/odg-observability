@@ -11,3 +11,16 @@ dependencies:
   - name: kube-state-metrics
     version: 8.6.0
     repository: oci://ghcr.io/prometheus-community/charts
+  # subchart .tgz is vendored under charts/ (committed); to bump:
+  #   rm charts/perses-*.tgz
+  #   helm repo add perses https://perses.github.io/helm-charts && helm repo update
+  #   helm pull perses/perses --version <version> -d charts/
+  # then update the version below.
+  - name: perses
+    version: 0.23.3
+    repository: https://perses.github.io/helm-charts
+    # aliased so the vendored patch (scripts/patch-perses-chart.sh) can expose
+    # OCM-compatible flat image keys under `perses-app:` without touching other values
+    alias: perses-app
+    # master switch: values.yaml `perses.enabled`
+    condition: perses.enabled

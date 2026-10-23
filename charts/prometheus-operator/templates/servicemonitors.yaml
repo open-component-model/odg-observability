@@ -48,3 +48,37 @@ spec:
         - sourceLabels: [__name__]
           regex: kube_pod_(container_info|init_container_info)
           action: drop
+---
+# self-scrape: select the prometheus-operated service created by the operator for the
+# Prometheus CR; label operated-prometheus=true is set by the operator
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: prometheus-self
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+  labels:
+    app: prometheus
+spec:
+  selector:
+    matchLabels:
+      operated-prometheus: "true"
+  endpoints:
+    - port: web
+      interval: {{ default "15s" .Values.scrapeInterval }}
+{{- if .Values.perses.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: perses
+  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
+  labels:
+    app: prometheus
+spec:
+  selector:
+    matchLabels:
+      monitoring: perses
+  endpoints:
+    - port: http
+      interval: {{ default "15s" .Values.scrapeInterval }}
+{{- end }}

@@ -35,6 +35,20 @@ resources:
       type: ociRegistry
       imageReference: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0
     relation: external
+  - name: perses
+    version: v0.54.0
+    type: ociImage
+    access:
+      type: ociRegistry
+      imageReference: docker.io/persesdev/perses:v0.54.0
+    relation: external
+  - name: k8s-sidecar
+    version: 2.13.3
+    type: ociImage
+    access:
+      type: ociRegistry
+      imageReference: docker.io/kiwigrid/k8s-sidecar:2.13.3
+    relation: external
 labels:
   - name: odg.ocm.software/responsibles
     value:

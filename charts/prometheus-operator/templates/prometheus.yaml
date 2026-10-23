@@ -69,6 +69,13 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-  - ports:
-    - protocol: TCP
-      port: 9090
+    # self-scrape: prometheus scrapes its own /metrics via pod IP (see the prometheus-self
+    # ServiceMonitor in templates/servicemonitors.yaml). Other datasource clients get their
+    # own policies (e.g. allow-ingress-to-prometheus-from-perses when perses is enabled).
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ $podName }}
+      ports:
+        - protocol: TCP
+          port: 9090
