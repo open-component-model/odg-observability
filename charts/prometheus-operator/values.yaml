@@ -28,13 +28,13 @@ alertmanager:
     channel: ~
     token: ~
     title: |-
-      [{{ "{{" }} .Status | toUpper {{ "}}" }}{{ "{{" }} if eq .Status "firing" {{ "}}" }}:{{ "{{" }} .Alerts.Firing | len {{ "}}" }}{{ "{{" }} end {{ "}}" }}] {{ "{{" }} .CommonLabels.alertname {{ "}}" }}
+      [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}
     text: |-
-      {{ "{{" }} range .Alerts {{ "}}" }}*Alert:* {{ "{{" }} .Annotations.summary {{ "}}" }}{{ "{{" }} if .Annotations.description {{ "}}" }}
-      *Description:* {{ "{{" }} .Annotations.description {{ "}}" }}{{ "{{" }} end {{ "}}" }}
-      *Severity:* {{ "{{" }} .Labels.severity {{ "}}" }}
-      *Namespace:* {{ "{{" }} .Labels.namespace {{ "}}" }}
-      {{ "{{" }} end {{ "}}" }}
+      {{ range .Alerts }}*Alert:* {{ .Annotations.summary }}{{ if .Annotations.description }}
+      *Description:* {{ .Annotations.description }}{{ end }}
+      *Severity:* {{ .Labels.severity }}
+      *Namespace:* {{ .Labels.namespace }}
+      {{ end }}
 
 
 # kube-state-metrics subchart configuration (see
