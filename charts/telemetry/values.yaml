@@ -5,8 +5,10 @@
 observedNamespace: odg-system
 
 # Annotation gate: only pods with this pod-annotation = "true" emit logs.
-# Set to "" to ship ALL logs in observedNamespace (dev mode).
-annotationKey: otel.io/pod-logs
+# Empty string disables the gate; all logs in observedNamespace ship except the
+# always-on excludes hardcoded in templates/collector-config.yaml (filter/exclude_noisy:
+# currently delivery-dashboard and delivery-db, which are high-volume and boring).
+annotationKey: ""
 
 # Host metrics (node cpu/mem utilization, 30s) and the prometheus scrape endpoint
 # on :8889 (metrics-operator gauges + hostmetrics) are always on — cheap, and more
