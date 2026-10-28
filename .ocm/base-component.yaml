@@ -27,14 +27,14 @@ resources:
     type: ociImage
     access:
       type: ociRegistry
-      imageReference: docker.io/otel/opentelemetry-collector-contrib:0.163.2@sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849
+      imageReference: docker.io/otel/opentelemetry-collector-contrib:0.163.2
     relation: external
   - name: metrics-operator
     version: v1.2.1
     type: ociImage
     access:
       type: ociRegistry
-      imageReference: ghcr.io/openmcp-project/images/metrics-operator:v1.2.1@sha256:5607bd49f3bdc28a90663794b12e95c39d3a036c48f5a72fe9e201150a3b7275
+      imageReference: ghcr.io/openmcp-project/images/metrics-operator:v1.2.1
     relation: external
   - name: alertmanager
     version: v0.34.0

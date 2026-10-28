@@ -85,7 +85,7 @@ opentelemetry-collector:
   # from the same subchart helper)
   image:
     repository: otel/opentelemetry-collector-contrib
-    tag: 0.163.2@sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849
+    tag: 0.163.2
   service:
     enabled: true                    # ClusterIP for OTLP :4317 even in daemonset mode
   ports:
@@ -165,7 +165,7 @@ metrics-operator:
   enabled: true
   image:
     repository: ghcr.io/openmcp-project/images/metrics-operator
-    tag: v1.2.1@sha256:5607bd49f3bdc28a90663794b12e95c39d3a036c48f5a72fe9e201150a3b7275
+    tag: v1.2.1
   metrics:
     service:
       enabled: true
