@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "opentelemetry-collector.fullname" . }}-override
+  name: telemetry-override
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "opentelemetry-collector.labels" . | nindent 4 }}
