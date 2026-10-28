@@ -29,5 +29,5 @@ roleRef:
   name: metrics-operator-backlogitems
 subjects:
   - kind: ServiceAccount
-    name: {{ .Release.Name }}-metrics-operator
+    name: {{ include "operator.fullname" (index .Subcharts "metrics-operator") }}
     namespace: {{ .Release.Namespace }}

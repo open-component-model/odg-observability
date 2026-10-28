@@ -82,9 +82,11 @@ opentelemetry-collector:
   # The sub-chart hashes the chart's own config, but we mount `telemetry-override` via
   # configmaps.create=false. Hash the override content ourselves so pods roll when it
   # changes (backend switch, observedNamespace, annotationKey, ...).
-  # no fullnameOverride: resources are named "<release>-opentelemetry-collector"
-  # consistently (service + daemonset + filelog self-exclusion glob all derive
-  # from the same subchart helper)
+  # pin chartnames via fullnameOverride: with odg-core's `helm template` (no release
+  # name) .Release.Name is the placeholder "release-name", which leaks into all
+  # subcharts' names. `fullnameOverride` bypasses the <release>-<chart> assembly,
+  # so all subchart resources get stable names.
+  fullnameOverride: telemetry-opentelemetry-collector
   image:
     repository: otel/opentelemetry-collector-contrib
     tag: 0.163.2
@@ -165,6 +167,8 @@ opentelemetry-collector:
 # those first. When bumping the metrics-operator version, re-copy crds/.
 metrics-operator:
   enabled: true
+  # see comment on opentelemetry-collector.fullnameOverride above
+  fullnameOverride: telemetry-metrics-operator
   image:
     repository: ghcr.io/openmcp-project/images/metrics-operator
     tag: v1.2.1

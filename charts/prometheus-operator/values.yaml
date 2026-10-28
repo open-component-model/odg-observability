@@ -40,6 +40,10 @@ alertmanager:
 # kube-state-metrics subchart configuration (see
 # https://artifacthub.io/packages/helm/prometheus-community/kube-state-metrics)
 kube-state-metrics:
+  # pin name so odg-core's `helm template` (no release name, helm's placeholder
+  # "release-name") does not leak into subchart resource names — same pattern
+  # as telemetry's subcharts.
+  fullnameOverride: kube-state-metrics
   image:
     # When repository is set (by OCM relocation), the kube-state-metrics.image helper override
     # in templates/helpers.tpl treats it as a flat "host/path/image" reference (same pattern
@@ -78,6 +82,8 @@ kube-state-metrics:
 # relocation); when empty the chart's registry/name/version defaults apply.
 # Re-run the script after every perses chart bump (Renovate postUpgradeTask).
 perses-app:
+  # same fullnameOverride pin as on kube-state-metrics — kills release-name-perses-app
+  fullnameOverride: perses
   # Master switch. When disabled, templates/perses{,-dashboards}.yaml and the perses
   # ServiceMonitor are skipped (the dashboard files under dashboards/ become inert).
   # Enable after first installing with CRDs, since its ServiceMonitor targets CRDs from crds/.

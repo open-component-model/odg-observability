@@ -19,3 +19,12 @@ to reach the collector (DataSink, docs) should use this, not a hardcoded name.
 {{- define "telemetry.collectorServiceName" -}}
 {{- printf "%s-opentelemetry-collector" .Release.Name | trunc 63 | trimSuffix "-" -}}
 {{- end }}
+
+{{/*
+DaemonSet pod-name prefix used by receiver filelog.exclude in collector-config.yaml.
+Matches the subchart's pods under our values.yaml `fullnameOverride`, independent of
+helm's release name (odg-core renders `helm template` with none).
+*/}}
+{{- define "telemetry.collectorDaemonSetPrefix" -}}
+{{- printf "%s-agent-" (index .Values "opentelemetry-collector" "fullnameOverride") | trunc 63 | trimSuffix "-" -}}
+{{- end }}
