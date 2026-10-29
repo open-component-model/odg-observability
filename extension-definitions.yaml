@@ -19,12 +19,12 @@ installation:
     - helm_chart_name: prometheus-operator
       helm_attribute: alertmanager.enabled
       value: ${alertmanagerEnabled}
-      value_type: python-string-template
+      value_type: boolean
       default: false
     - helm_chart_name: prometheus-operator
       helm_attribute: perses-app.enabled
       value: ${persesEnabled}
-      value_type: python-string-template
+      value_type: boolean
       default: false
 outputs: []
 dependencies: []
