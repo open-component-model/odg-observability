@@ -39,21 +39,31 @@ spec:
       app.kubernetes.io/instance: {{ .Release.Name }}
   policyTypes: [Egress]
   egress:
-    # Private IPs only: pods (10.244.0.0/24 kind, 10.0.0.0/8 gardener), services
-    # (10.96.0.0/12), kube-dns, API server ClusterIP. Covers all common CNI
-    # layouts without hardcoding the API server IP.
+    # Cluster-local traffic: pods (10.0.0.0/8, node pod CIDRs), legacy
+    # docker/service CIDRs (172.16/192.168), and the gardener service CIDR
+    # (100.64.0.0/10) — kube-dns and the kubernetes.default ClusterIP live
+    # there. Without 100.64/10 the collector can't reach kube-apiserver for
+    # k8sattributes and rbac-informer lookups.
     - to:
         - ipBlock: { cidr: 10.0.0.0/8 }
         - ipBlock: { cidr: 172.16.0.0/12 }
         - ipBlock: { cidr: 192.168.0.0/16 }
+        - ipBlock: { cidr: 100.64.0.0/10 }
 {{- if eq .Values.backend "btp" }}
     # BTP Cloud Logging ingest-otlp endpoint is public-facing. Its IPs rotate
-    # (SAP CLS is multi-region); only TCP/443 is needed. DNS stays covered by the
-    # private-CIDR rule above (kube-dns is in-cluster).
+    # (SAP CLS is multi-region); only TCP/443 is needed for OTLP.
     - to:
         - ipBlock: { cidr: 0.0.0.0/0 }
       ports:
         - { port: 443, protocol: TCP }
+    # kube-dns ClusterIP lives in the service CIDR (100.64.0.0/10 on gardener),
+    # NOT in the RFC1918 ranges above. Without DNS egress, resolving the public
+    # BTP endpoint hangs inside the gRPC dial -> DeadlineExceeded on export.
+    - ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+      to:
+        - ipBlock: { cidr: 0.0.0.0/0 }
 {{- end }}
 {{- if .Values.metrics.enabled }}
 ---
