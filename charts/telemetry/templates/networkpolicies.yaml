@@ -49,6 +49,16 @@ spec:
         - ipBlock: { cidr: 172.16.0.0/12 }
         - ipBlock: { cidr: 192.168.0.0/16 }
         - ipBlock: { cidr: 100.64.0.0/10 }
+    # kube-dns ClusterIP lives in the service CIDR (100.64.0.0/10 on gardener),
+    # and rule #1 above already covers it. Keep this explicit DNS rule anyway:
+    # any backend that pushes outside the cluster (btp, opensearch, ...) needs
+    # DNS resolution to succeed, and future backends may sit outside the
+    # private ranges.
+    - ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+      to:
+        - ipBlock: { cidr: 0.0.0.0/0 }
 {{- if eq .Values.backend "btp" }}
     # BTP Cloud Logging ingest-otlp endpoint is public-facing. Its IPs rotate
     # (SAP CLS is multi-region); only TCP/443 is needed for OTLP.
@@ -56,15 +66,11 @@ spec:
         - ipBlock: { cidr: 0.0.0.0/0 }
       ports:
         - { port: 443, protocol: TCP }
-    # kube-dns ClusterIP lives in the service CIDR (100.64.0.0/10 on gardener),
-    # NOT in the RFC1918 ranges above. Without DNS egress, resolving the public
-    # BTP endpoint hangs inside the gRPC dial -> DeadlineExceeded on export.
-    - ports:
-        - { port: 53, protocol: UDP }
-        - { port: 53, protocol: TCP }
-      to:
-        - ipBlock: { cidr: 0.0.0.0/0 }
 {{- end }}
+    # opensearch backend is cluster-only by design: endpoint is a svc DNS name
+    # (opensearch-*.svc.cluster.local:9200). Rule #1 above covers pod + service
+    # CIDRs, so no extra rule here. Point the chart at an external OpenSearch
+    # and you must add an explicit ipBlock+port rule yourself.
 {{- if .Values.metrics.enabled }}
 ---
 apiVersion: networking.k8s.io/v1
