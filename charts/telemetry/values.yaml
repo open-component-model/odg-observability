@@ -7,12 +7,21 @@ observedNamespace: odg-system
 # Annotation gate: only pods with this pod-annotation = "true" emit logs.
 # Empty string disables the gate; all logs in observedNamespace ship except the
 # always-on excludes hardcoded in templates/collector-config.yaml (filter/exclude_noisy:
-# currently delivery-dashboard and delivery-db, which are high-volume and boring).
+# delivery-dashboard, delivery-db, and the telemetry stack incl. perses).
 annotationKey: ""
+
+# Extra pod-name prefixes whose logs are never read (filelog exclude, so no CPU
+# spent on parsing). E.g. a local in-cluster backend: [opensearch-, opensearch-dashboards-]
+excludePodPrefixes: []
 
 # Host metrics (node cpu/mem utilization, 30s) and the prometheus scrape endpoint
 # on :8889 (metrics-operator gauges + hostmetrics) are always on — cheap, and more
 # metric sources will land here later.
+
+# Optional human label (e.g. "mODG prod") -> resource attr deployment.environment.name.
+# Unset: mODG pods fall back to their odg-name label (odg-dev, odg-prod).
+# Not required: k8s.cluster.name is derived automatically (see collector-config.yaml).
+environment: ""
 
 ## ─── Push backend ───────────────────────────────────────────────────────────
 # Where logs/traces (and for btp, also metrics) are PUSHED. One of:

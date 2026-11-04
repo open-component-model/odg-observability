@@ -32,3 +32,21 @@ helm's release name (odg-core renders `helm template` with none).
 {{- define "telemetry.collectorDaemonSetPrefix" -}}
 {{- printf "%s-agent-" (index .Values "opentelemetry-collector" "fullnameOverride") | trunc 63 | trimSuffix "-" -}}
 {{- end }}
+
+{{/*
+Cluster identity OTTL statements (resource context), shared by logs and traces.
+Gardener: KUBERNETES_SERVICE_HOST = api.<shoot>.<project>.internal... -> "<project>/<shoot>".
+Other clusters keep the raw value. Environment: values.environment, else the
+odg-name label (pod first, then owning deployment/statefulset).
+*/}}
+{{- define "telemetry.clusterIdentityStatements" -}}
+- set(resource.attributes["k8s.cluster.endpoint"], "${env:KUBERNETES_SERVICE_HOST}")
+- set(resource.attributes["k8s.cluster.name"], resource.attributes["k8s.cluster.endpoint"])
+- replace_pattern(resource.attributes["k8s.cluster.name"], "^api\\.([^.]+)\\.([^.]+)\\..*$", "$$2/$$1")
+- set(resource.attributes["odg.instance"], resource.attributes["odg.instance.owner"]) where resource.attributes["odg.instance"] == nil and resource.attributes["odg.instance.owner"] != nil
+- delete_key(resource.attributes, "odg.instance.owner")
+- set(resource.attributes["deployment.environment.name"], resource.attributes["odg.instance"]) where resource.attributes["odg.instance"] != nil
+{{- with .Values.environment }}
+- set(resource.attributes["deployment.environment.name"], {{ . | quote }})
+{{- end }}
+{{- end }}
