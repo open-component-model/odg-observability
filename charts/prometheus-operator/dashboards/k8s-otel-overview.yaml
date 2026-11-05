@@ -27,7 +27,7 @@ spec:
             name: prometheus
           labelName: k8s_namespace_name
           matchers:
-          - k8s_pod_cpu_usage{job="telemetry-opentelemetry-collector"}
+          - k8s_pod_cpu_usage{job=~"telemetry-opentelemetry-collector.*"}
   panels:
     nodes_ready:
       kind: Panel
@@ -48,7 +48,10 @@ spec:
                 datasource:
                   kind: PrometheusDatasource
                   name: prometheus
-                query: sum(k8s_node_condition{job="telemetry-opentelemetry-collector", condition="Ready", status="true"}) or vector(0)
+                # k8scluster encodes state as the VALUE (1=true, 0=false, -1=unknown),
+                # not as a `status` label like kube-state-metrics does. Cluster-state
+                # metrics live on the single-replica -cluster job, not the daemonset.
+                query: sum(k8s_node_condition{job="telemetry-opentelemetry-collector-cluster", condition="Ready"} > 0) or vector(0)
     pod_cpu_util:
       kind: Panel
       spec:
@@ -69,6 +72,7 @@ spec:
                 datasource:
                   kind: PrometheusDatasource
                   name: prometheus
+                # pod/container metrics come from the DaemonSet's kubeletstats receiver
                 query: sum by (k8s_pod_name) (k8s_pod_cpu_usage{job="telemetry-opentelemetry-collector", k8s_namespace_name="$namespace"}) * 1000
     pod_mem_util:
       kind: Panel
@@ -111,7 +115,7 @@ spec:
                 datasource:
                   kind: PrometheusDatasource
                   name: prometheus
-                query: sum by (k8s_deployment_name) (k8s_deployment_desired{job="telemetry-opentelemetry-collector", k8s_namespace_name="$namespace"})
+                query: sum by (k8s_deployment_name) (k8s_deployment_desired{job="telemetry-opentelemetry-collector-cluster", k8s_namespace_name="$namespace"})
                 seriesNameFormat: "{{k8s_deployment_name}} desired"
         - kind: TimeSeriesQuery
           spec:
@@ -121,7 +125,7 @@ spec:
                 datasource:
                   kind: PrometheusDatasource
                   name: prometheus
-                query: sum by (k8s_deployment_name) (k8s_deployment_available{job="telemetry-opentelemetry-collector", k8s_namespace_name="$namespace"})
+                query: sum by (k8s_deployment_name) (k8s_deployment_available{job="telemetry-opentelemetry-collector-cluster", k8s_namespace_name="$namespace"})
                 seriesNameFormat: "{{k8s_deployment_name}} available"
     cluster_label_check:
       kind: Panel
@@ -143,7 +147,7 @@ spec:
                 datasource:
                   kind: PrometheusDatasource
                   name: prometheus
-                query: count by (k8s_cluster_name) ({job="telemetry-opentelemetry-collector", __name__=~"k8s_.+|container_.+|system_.+"})
+                query: count by (k8s_cluster_name) ({job=~"telemetry-opentelemetry-collector.*", __name__=~"k8s_.+|container_.+|system_.+"})
   layouts:
   - kind: Grid
     spec:

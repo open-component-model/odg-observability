@@ -18,4 +18,24 @@ spec:
   endpoints:
     - port: metrics
       interval: {{ .Values.prometheus.integration.scrapeInterval | default "15s" }}
+{{- if .Values.otelMetrics.enabled }}
+---
+# Scrape the single-replica k8s_cluster Deployment alongside the daemonset.
+# Labels differ because the subchart instance is aliased `-cluster`.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector-cluster-metrics
+  namespace: {{ .Values.target_namespace | default .Values.observedNamespace | default .Release.Namespace }}
+  labels:
+    app: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector-cluster
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.prometheus.integration.scrapeInterval | default "15s" }}
+{{- end }}
 {{- end }}

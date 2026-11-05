@@ -7,6 +7,15 @@ dependencies:
   - name: opentelemetry-collector
     version: 0.177.0
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  # Second, aliased instance of the same sub-chart: a single-replica Deployment
+  # that runs ONLY the k8s_cluster receiver. Cluster-scope state is identical
+  # from every node, so a DaemonSet would emit N-1 duplicate series. Enabled
+  # only when otelMetrics.enabled=true (the "drop kube-state-metrics" path).
+  - name: opentelemetry-collector
+    version: 0.177.0
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    alias: opentelemetry-collector-cluster
+    condition: otelMetrics.enabled
   - name: metrics-operator
     version: v1.2.1
     repository: oci://ghcr.io/openmcp-project/charts

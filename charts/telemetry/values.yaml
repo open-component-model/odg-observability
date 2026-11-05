@@ -138,18 +138,6 @@ opentelemetry-collector:
       - apiGroups: ["apps"]
         resources: [replicasets, deployments, daemonsets, statefulsets]
         verbs: [get, list, watch]
-      # k8scluster (otelMetrics.enabled=true): K8s object state from the API server.
-      # Full object list is wider than the k8sattributes needs above — sinks cronjobs,
-      # jobs, services, HPAs, PVs/PVCs, and (core) quotas/replicationcontrollers.
-      - apiGroups: [""]
-        resources: [resourcequotas, replicationcontrollers, services, persistentvolumes, persistentvolumeclaims]
-        verbs: [get, list, watch]
-      - apiGroups: ["batch"]
-        resources: [jobs, cronjobs]
-        verbs: [get, list, watch]
-      - apiGroups: ["autoscaling"]
-        resources: [horizontalpodautoscalers]
-        verbs: [get, list, watch]
       # kubeletstats (otelMetrics.enabled=true): serviceAccount auth to kubelet needs
       # nodes/stats + nodes/proxy (bearer-token) + nodes/pods (the /pods summary view).
       - apiGroups: [""]
@@ -191,6 +179,55 @@ opentelemetry-collector:
   config:
     # placeholder — subchart schema requires a config block; the DaemonSet mounts
     # the override ConfigMap above, this is never read at runtime.
+    extensions:
+      health_check: {}
+    service:
+      extensions: [health_check]
+      pipelines: {}
+
+## ─── Sub-chart: k8s_cluster-only collector (Deployment, single replica) ──────
+# Cluster-scope state is identical from every node; DaemonSet k8s_cluster would
+# emit N-1 duplicates. With otelMetrics.enabled=true the receiver lives HERE in a
+# single-replica Deployment. Its config mirrors the daemonset's cluster-identity
+# transform so the k8s.cluster.name label is added the same way.
+opentelemetry-collector-cluster:
+  enabled: false  # flipped on by Chart.yaml condition when otelMetrics.enabled=true
+  fullnameOverride: telemetry-opentelemetry-collector-cluster
+  mode: deployment
+  replicaCount: 1
+  # No filelog, no hostmetrics — k8scluster is the only receiver this pod needs.
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: 0.163.2
+  service:
+    enabled: true
+  ports:
+    metrics:
+      enabled: true
+      containerPort: 8889
+      servicePort: 8889
+      hostPort: 0
+      protocol: TCP
+  clusterRole:
+    create: true
+    rules:
+      # k8scluster (otelMetrics.enabled=true): K8s object state from the API server
+      - apiGroups: [""]
+        resources: [pods, namespaces, nodes, resourcequotas, replicationcontrollers, services, persistentvolumes, persistentvolumeclaims]
+        verbs: [get, list, watch]
+      - apiGroups: ["apps"]
+        resources: [replicasets, deployments, daemonsets, statefulsets]
+        verbs: [get, list, watch]
+      - apiGroups: ["batch"]
+        resources: [jobs, cronjobs]
+        verbs: [get, list, watch]
+      - apiGroups: ["autoscaling"]
+        resources: [horizontalpodautoscalers]
+        verbs: [get, list, watch]
+  configMap:
+    create: false
+    existingName: telemetry-cluster-override
+  config:
     extensions:
       health_check: {}
     service:

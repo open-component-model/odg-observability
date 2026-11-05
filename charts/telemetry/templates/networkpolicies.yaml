@@ -81,6 +81,54 @@ spec:
       ports:
         - { port: 10250, protocol: TCP }
 {{- end }}
+{{- if .Values.otelMetrics.enabled }}
+---
+# The single-replica k8s_cluster collector: only needs egress to kube-apiserver
+# (the receiver's whole purpose) + ingress from Prometheus scraper.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-otel-collector-cluster
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector-cluster
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - { port: 8889, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-from-otel-collector-cluster
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector-cluster
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Egress]
+  egress:
+    # Cluster-internal only: kube-apiserver + kube-dns. Both sit in cluster
+    # private/100.64 ranges; no public egress ever required.
+    - to:
+        - ipBlock: { cidr: 10.0.0.0/8 }
+        - ipBlock: { cidr: 172.16.0.0/12 }
+        - ipBlock: { cidr: 192.168.0.0/16 }
+        - ipBlock: { cidr: 100.64.0.0/10 }
+    - ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+      to:
+        - ipBlock: { cidr: 0.0.0.0/0 }
+{{- end }}
 {{- if .Values.metrics.enabled }}
 ---
 apiVersion: networking.k8s.io/v1

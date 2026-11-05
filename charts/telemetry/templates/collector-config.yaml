@@ -63,23 +63,8 @@ data:
           k8s.pod.cpu_request_utilization: { enabled: true }
           k8s.pod.memory_limit_utilization: { enabled: true }
           k8s.pod.memory_request_utilization: { enabled: true }
-      # K8s object state (deployments, pods, nodes, quotas) via the API server —
-      # replaces kube-state-metrics. Runs in this same DaemonSet pod, so every node
-      # emits identical series; Prometheus dedupes by pod label so each is visible.
-      # Long-term this becomes a single-replica deployment — until then, dashboards
-      # should aggregate over pod.
-      k8s_cluster:
-        collection_interval: 30s
-        node_conditions_to_report: [Ready, MemoryPressure, DiskPressure, PIDPressure, NetworkUnavailable]
-        metrics:
-          # Defaults already cover the perses panels (k8s.deployment.desired, .available,
-          # k8s.container.*, k8s.pod.phase, k8s.namespace.phase, k8s.resource_quota.*, ...).
-          # Enable a couple more for parity with kube-state-metrics dashboards.
-          k8s.node.condition: { enabled: true }
-          k8s.container.ready: { enabled: true }
-          k8s.container.restarts: { enabled: true }
-          k8s.statefulset.ready_pods: { enabled: true }
-          k8s.daemonset.ready_nodes: { enabled: true }
+      # NOTE: k8s_cluster receiver moved to opentelemetry-collector-cluster
+      # (single-replica Deployment) — cluster state is identical on every node.
       {{- end }}
 
     processors:
@@ -249,7 +234,7 @@ data:
             {{- end }}
 
         metrics:
-          receivers: [otlp, hostmetrics{{- if .Values.otelMetrics.enabled }}, kubeletstats, k8s_cluster{{- end }}]
+          receivers: [otlp, hostmetrics{{- if .Values.otelMetrics.enabled }}, kubeletstats{{- end }}]
           # cluster identity on metrics too: deployment.environment.name + k8s.cluster.name
           # become Prometheus labels via resource_to_telemetry_conversion.
           processors: [memory_limiter, transform/cluster_identity, batch]
