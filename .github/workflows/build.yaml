@@ -113,6 +113,11 @@ jobs:
                 attribute: opentelemetry-collector.image.repository
               - ref: ocm-resource:opentelemetry-collector-contrib.tag
                 attribute: opentelemetry-collector.image.tag
+              # aliased 2nd instance (single-replica k8s_cluster Deployment)
+              - ref: ocm-resource:opentelemetry-collector-contrib.repository
+                attribute: opentelemetry-collector-cluster.image.repository
+              - ref: ocm-resource:opentelemetry-collector-contrib.tag
+                attribute: opentelemetry-collector-cluster.image.tag
               - ref: ocm-resource:metrics-operator.repository
                 attribute: metrics-operator.image.repository
               - ref: ocm-resource:metrics-operator.tag

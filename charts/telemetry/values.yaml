@@ -19,7 +19,8 @@ excludePodPrefixes: []
 # metric sources will land here later.
 
 # Optional human label (e.g. "mODG prod") -> resource attr deployment.environment.name.
-# Unset: mODG pods fall back to their odg-name label (odg-dev, odg-prod).
+# Unset: logs/traces from mODG pods fall back to their odg-name label (odg-dev,
+# odg-prod). Metrics get deployment.environment.name ONLY from this value.
 # Not required: k8s.cluster.name is derived automatically (see collector-config.yaml).
 environment: ""
 
@@ -58,19 +59,15 @@ metrics:
   # is the one knob. More metrics (BacklogItems, …) get added to
   # templates/metrics.yaml as the need shows up.
 
-## ─── kubeletstats + k8scluster receivers ────────────────────────────────────
-# Feeds container/pod CPU/memory (kubeletstats) and k8s object state
-# (k8scluster: deployments, pods, nodes, quotas) into the same metrics pipeline the
-# prometheus exporter exposes on :8889. With this enabled you can drop kube-state-
-# metrics and the cAdvisor scrapeConfig; disable it and everything below disappears
-# (receivers, RBAC, network policy, extra deployment) in one `helm upgrade`.
-# Remove-by-flag is intentional — this is the escape hatch for ADR-008.
+## ─── kubeletstats + k8s_cluster receivers ───────────────────────────────────
+# kubeletstats (DaemonSet): pod/container CPU + memory from each node's kubelet.
+# k8s_cluster (single-replica Deployment): k8s object state from the API server.
+# Both are exposed by the prometheus exporter on :8889. Setting enabled=false
+# removes the receivers, the kubelet RBAC, the extra network policies and the
+# Deployment.
 otelMetrics:
-  # Default-on so ADR-008 evaluation runs against the new path out of the box.
-  # Escape hatch: --set otelMetrics.enabled=false on helm upgrade and the whole
-  # k8scluster/kubeletstats/single-replica stack disappears in one step.
   enabled: true
-  # How often kubeletstats polls the kubelet
+  # Poll interval for both receivers
   collectionInterval: 30s
 
 ## ─── Prometheus scrape integration (sibling chart) ──────────────────────────
@@ -95,10 +92,12 @@ opentelemetry-collector:
   # daemonset: one collector per node; k8sattributes sees same-node pods and filelog
   # tails that node's /var/log/pods. Deployment+replicas breaks at 2+ nodes.
   mode: daemonset
-  # Pods DO NOT auto-restart when templates/collector-config.yaml changes —
-  # `enableConfigChecksumAnnotation` only hashes the subchart's unused built-in relay.
-  # After `helm upgrade` against a config change, run:
-  #   kubectl rollout restart ds <release>-opentelemetry-collector-agent -n <ns>
+  # Pods DO NOT auto-restart when templates/collector-config.yaml (or
+  # collector-cluster-config.yaml) changes — `enableConfigChecksumAnnotation` only
+  # hashes the subchart's unused built-in relay, and the subchart cannot see this
+  # chart's values to hash our override. After `helm upgrade` with a config change:
+  #   kubectl rollout restart ds/telemetry-opentelemetry-collector-agent -n <ns>
+  #   kubectl rollout restart deploy/telemetry-opentelemetry-collector-cluster -n <ns>
   enableConfigChecksumAnnotation: true
   # pin chartnames via fullnameOverride: with odg-core's `helm template` (no release
   # name) .Release.Name is the placeholder "release-name", which leaks into all
@@ -135,11 +134,8 @@ opentelemetry-collector:
       - apiGroups: ["apps"]
         resources: [replicasets, deployments, daemonsets, statefulsets]
         verbs: [get, list, watch]
-      # kubeletstats (otelMetrics.enabled=true): serviceAccount auth to kubelet needs
-      # nodes/stats + nodes/proxy (bearer-token) + nodes/pods (the /pods summary view).
-      - apiGroups: [""]
-        resources: [nodes/stats, nodes/proxy, nodes/pods]
-        verbs: [get, list]
+      # kubeletstats RBAC (nodes/stats, nodes/pods) is NOT here: it lives in
+      # templates/kubeletstats-rbac.yaml so otelMetrics.enabled=false removes it.
   # filelog needs host log mounts (logsCollection preset stays off — we template
   # the receiver ourselves so observedNamespace renders into the glob).
   # Values here are the fallback when ODG's installer does NOT override
@@ -188,17 +184,25 @@ opentelemetry-collector:
 # single-replica Deployment. Its config mirrors the daemonset's cluster-identity
 # transform so the k8s.cluster.name label is added the same way.
 opentelemetry-collector-cluster:
-  enabled: false  # flipped on by Chart.yaml condition when otelMetrics.enabled=true
+  enabled: false  # actually toggled by the Chart.yaml condition otelMetrics.enabled
   fullnameOverride: telemetry-opentelemetry-collector-cluster
   mode: deployment
   replicaCount: 1
-  # No filelog, no hostmetrics — k8scluster is the only receiver this pod needs.
+  # No filelog, no hostmetrics: k8s_cluster is the only receiver this pod needs.
   image:
     repository: otel/opentelemetry-collector-contrib
     tag: 0.163.2
   service:
     enabled: true
+  # Only the prometheus exporter listens here; turn off the subchart's default
+  # receiver ports so the Service/pod don't advertise dead endpoints.
   ports:
+    otlp: { enabled: false }
+    otlp-http: { enabled: false }
+    jaeger-compact: { enabled: false }
+    jaeger-thrift: { enabled: false }
+    jaeger-grpc: { enabled: false }
+    zipkin: { enabled: false }
     metrics:
       enabled: true
       containerPort: 8889
@@ -208,7 +212,7 @@ opentelemetry-collector-cluster:
   clusterRole:
     create: true
     rules:
-      # k8scluster (otelMetrics.enabled=true): K8s object state from the API server
+      # k8s_cluster: K8s object state from the API server
       - apiGroups: [""]
         resources: [pods, namespaces, nodes, resourcequotas, replicationcontrollers, services, persistentvolumes, persistentvolumeclaims]
         verbs: [get, list, watch]

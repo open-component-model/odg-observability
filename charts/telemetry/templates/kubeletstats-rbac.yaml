@@ -1,0 +1,33 @@
+{{- if .Values.otelMetrics.enabled }}
+# kubeletstats receiver (DaemonSet) authenticates to the kubelet with its
+# ServiceAccount token. Least privilege per the receiver README:
+#   nodes/stats -> /stats/summary
+#   nodes/pods  -> /pods (extra_metadata_labels + *_utilization metrics)
+# Deliberately NOT nodes/proxy: that grants the full kubelet API (exec, logs).
+# Lives here, not in the subchart's clusterRole.rules, so the flag removes it.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ index .Values "opentelemetry-collector" "fullnameOverride" }}-kubeletstats
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [nodes/stats, nodes/pods]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ index .Values "opentelemetry-collector" "fullnameOverride" }}-kubeletstats
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ index .Values "opentelemetry-collector" "fullnameOverride" }}-kubeletstats
+subjects:
+  - kind: ServiceAccount
+    name: {{ index .Values "opentelemetry-collector" "fullnameOverride" }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

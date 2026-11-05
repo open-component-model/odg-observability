@@ -1,7 +1,6 @@
-# ADR-008 candidate: OTel-collector-only replacement for kube-state-metrics + cAdvisor.
-# Panels here query metrics emitted by the kubeletstats + k8scluster receivers via
-# the telemetry-opentelemetry-collector :8889 exporter. Set telemetry.otelMetrics.enabled=false
-# and delete this file to revert fully to kube-state-metrics + cadvisor scraping.
+# Pod/container metrics from the kubeletstats receiver (telemetry-opentelemetry-collector
+# job) and cluster state from the k8s_cluster receiver (-cluster job), both via :8889.
+# Requires telemetry.otelMetrics.enabled=true.
 kind: Dashboard
 metadata:
   name: k8s-otel-overview

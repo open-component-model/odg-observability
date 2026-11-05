@@ -2,8 +2,8 @@
 # Config for the single-replica k8s_cluster Deployment (opentelemetry-collector-cluster).
 # Cluster-scope state (deployments, pods-as-objects, nodes, quotas) is identical from
 # every node, so running the receiver in the DaemonSet would emit N-1 duplicate series.
-# Disable with otelMetrics.enabled=false — this ConfigMap and the deployment disappear
-# together, kube-state-metrics + cadvisor keep winning.
+# Disable with otelMetrics.enabled=false: this ConfigMap and the Deployment are
+# removed together.
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -19,20 +19,13 @@ data:
         endpoint: ${env:MY_POD_IP}:13133
 
     receivers:
-      # K8s object state from the API server — replaces kube-state-metrics.
-      # Runs ONCE cluster-wide via the deployment, not per-node.
+      # K8s object state from the API server (overlaps kube-state-metrics).
+      # Runs once cluster-wide via the Deployment, not per node.
       k8s_cluster:
         collection_interval: {{ .Values.otelMetrics.collectionInterval | quote }}
         node_conditions_to_report: [Ready, MemoryPressure, DiskPressure, PIDPressure, NetworkUnavailable]
-        metrics:
-          # Default metrics already cover the perses panels (k8s.deployment.desired,
-          # .available, k8s.container.*, k8s.pod.phase, k8s.namespace.phase,
-          # k8s.resource_quota.*). Enable a few more for parity with ksm dashboards.
-          k8s.node.condition: { enabled: true }
-          k8s.container.ready: { enabled: true }
-          k8s.container.restarts: { enabled: true }
-          k8s.statefulset.ready_pods: { enabled: true }
-          k8s.daemonset.ready_nodes: { enabled: true }
+        # All metrics used by the perses dashboard (k8s.node.condition,
+        # k8s.deployment.*) are on by default; no metrics: overrides needed.
 
     processors:
       # cluster identity so receiver output picks up k8s.cluster.name the same way as

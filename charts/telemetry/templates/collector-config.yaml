@@ -1,7 +1,7 @@
 # NOTE: config changes to this ConfigMap do NOT auto-roll the DaemonSet.
-# values.yaml's opentelemetry-collector.podAnnotations carries a hash computed
-# from the same .Values that drive this template — keep its list in sync when
-# this template starts consuming additional values.
+# The subchart's checksum/config annotation hashes its own (unused) relay, not
+# this ConfigMap. Run `kubectl rollout restart` after changes — see values.yaml
+# (opentelemetry-collector.enableConfigChecksumAnnotation).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -53,13 +53,15 @@ data:
             metrics:
               system.memory.utilization: { enabled: true }
       {{- if .Values.otelMetrics.enabled }}
-      # Pod/container CPU+memory from the same node's kubelet (replaces cadvisor scrape).
-      # ServiceAccount + nodes/stats RBAC (values.yaml clusterRole.rules) authorises the
-      # request; node name comes from the downward API via the subchart's default env vars.
+      # Pod/container CPU + memory from the same node's kubelet.
+      # Auth: ServiceAccount token + nodes/stats, nodes/pods RBAC (templates/kubeletstats-rbac.yaml).
+      # Node IP (downward API status.hostIP, subchart default env) instead of
+      # node name: node names don't always resolve via cluster DNS. Upstream preset
+      # does the same.
       kubeletstats:
         collection_interval: {{ .Values.otelMetrics.collectionInterval | quote }}
         auth_type: serviceAccount
-        endpoint: "${env:OTEL_K8S_NODE_NAME}:10250"
+        endpoint: "${env:OTEL_K8S_NODE_IP}:10250"
         insecure_skip_verify: true
         extra_metadata_labels: [k8s.volume.type]
         metrics:
@@ -239,8 +241,10 @@ data:
 
         metrics:
           receivers: [otlp, hostmetrics{{- if .Values.otelMetrics.enabled }}, kubeletstats{{- end }}]
-          # cluster identity on metrics too: deployment.environment.name + k8s.cluster.name
-          # become Prometheus labels via resource_to_telemetry_conversion.
+          # cluster identity on metrics too: k8s.cluster.name always; deployment.environment.name
+          # ONLY when values.environment is set — there is no k8sattributes in this pipeline,
+          # so the odg.instance (odg-name label) fallback never fires for metrics.
+          # Resource attrs become Prometheus labels via resource_to_telemetry_conversion.
           processors: [memory_limiter, transform/cluster_identity, batch]
           # metrics always go to the in-cluster Prometheus exporter; never pushed
           # to BTP/OpenSearch (their logs/traces indices are not the right shape).

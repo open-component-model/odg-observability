@@ -128,6 +128,14 @@ spec:
         - { port: 53, protocol: TCP }
       to:
         - ipBlock: { cidr: 0.0.0.0/0 }
+    # Gardener injects KUBERNETES_SERVICE_HOST=api.<shoot>.<project>.internal...
+    # into every pod, so the apiserver is reached via that DNS name, which may
+    # resolve to a non-private LB IP. The agent gets this via its btp :443 rule;
+    # this pod has no backend rule, so allow :443 explicitly.
+    - to:
+        - ipBlock: { cidr: 0.0.0.0/0 }
+      ports:
+        - { port: 443, protocol: TCP }
 {{- end }}
 {{- if .Values.metrics.enabled }}
 ---
