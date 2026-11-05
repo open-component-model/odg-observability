@@ -128,6 +128,10 @@ data:
           - context: resource
             statements:
               {{- include "telemetry.clusterIdentityStatements" . | nindent 14 }}
+        metric_statements:
+          - context: resource
+            statements:
+              {{- include "telemetry.clusterIdentityStatements" . | nindent 14 }}
       batch:
         timeout: 5s
         send_batch_size: 1024
@@ -213,7 +217,9 @@ data:
 
         metrics:
           receivers: [otlp, hostmetrics]
-          processors: [memory_limiter, batch]
+          # cluster identity on metrics too: deployment.environment.name + k8s.cluster.name
+          # become Prometheus labels via resource_to_telemetry_conversion.
+          processors: [memory_limiter, transform/cluster_identity, batch]
           # metrics always go to the in-cluster Prometheus exporter; never pushed
           # to BTP/OpenSearch (their logs/traces indices are not the right shape).
           exporters:
