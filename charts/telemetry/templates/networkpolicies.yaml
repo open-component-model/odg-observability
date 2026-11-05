@@ -71,6 +71,16 @@ spec:
     # (opensearch-*.svc.cluster.local:9200). Rule #1 above covers pod + service
     # CIDRs, so no extra rule here. Point the chart at an external OpenSearch
     # and you must add an explicit ipBlock+port rule yourself.
+{{- if .Values.otelMetrics.enabled }}
+    # kubeletstats receiver scrapes the kubelet on TCP/10250 on every node.
+    # Existing rule #1 covers RFC1918 node IPs (kind, most gardener CIDRs);
+    # this explicit rule keeps kubelet reachable on networks where node IPs
+    # fall outside those ranges (rare, but real on some on-prem landscapes).
+    - to:
+        - ipBlock: { cidr: 0.0.0.0/0 }
+      ports:
+        - { port: 10250, protocol: TCP }
+{{- end }}
 {{- if .Values.metrics.enabled }}
 ---
 apiVersion: networking.k8s.io/v1

@@ -1,0 +1,180 @@
+# ADR-008 candidate: OTel-collector-only replacement for kube-state-metrics + cAdvisor.
+# Panels here query metrics emitted by the kubeletstats + k8scluster receivers via
+# the telemetry-opentelemetry-collector :8889 exporter. Set telemetry.otelMetrics.enabled=false
+# and delete this file to revert fully to kube-state-metrics + cadvisor scraping.
+kind: Dashboard
+metadata:
+  name: k8s-otel-overview
+  project: odg
+  title: Kubernetes / OTel Collector View (kubeletstats + k8scluster)
+spec:
+  display:
+    name: Kubernetes / OTel Collector View (kubeletstats + k8scluster)
+  duration: 1h
+  variables:
+  - kind: ListVariable
+    spec:
+      name: namespace
+      display:
+        name: Namespace
+      allowAllValue: false
+      allowMultiple: false
+      plugin:
+        kind: PrometheusLabelValuesVariable
+        spec:
+          datasource:
+            kind: PrometheusDatasource
+            name: prometheus
+          labelName: k8s_namespace_name
+          matchers:
+          - k8s_pod_cpu_usage{job="telemetry-opentelemetry-collector"}
+  panels:
+    nodes_ready:
+      kind: Panel
+      spec:
+        display:
+          name: Nodes Ready
+        plugin:
+          kind: StatChart
+          spec:
+            format:
+              unit: decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum(k8s_node_condition{job="telemetry-opentelemetry-collector", condition="Ready", status="true"}) or vector(0)
+    pod_cpu_util:
+      kind: Panel
+      spec:
+        display:
+          name: Pod CPU (millicores)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            yAxis:
+              format:
+                unit: decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (k8s_pod_name) (k8s_pod_cpu_usage{job="telemetry-opentelemetry-collector", k8s_namespace_name="$namespace"}) * 1000
+    pod_mem_util:
+      kind: Panel
+      spec:
+        display:
+          name: Pod memory working set (bytes)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            yAxis:
+              format:
+                unit: bytes
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (k8s_pod_name) (k8s_pod_memory_working_set_bytes{job="telemetry-opentelemetry-collector", k8s_namespace_name="$namespace"})
+    deployment_replicas:
+      kind: Panel
+      spec:
+        display:
+          name: Deployment replicas (desired vs available)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            yAxis:
+              format:
+                unit: decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (k8s_deployment_name) (k8s_deployment_desired{job="telemetry-opentelemetry-collector", k8s_namespace_name="$namespace"})
+                seriesNameFormat: "{{k8s_deployment_name}} desired"
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (k8s_deployment_name) (k8s_deployment_available{job="telemetry-opentelemetry-collector", k8s_namespace_name="$namespace"})
+                seriesNameFormat: "{{k8s_deployment_name}} available"
+    cluster_label_check:
+      kind: Panel
+      spec:
+        display:
+          name: Cross-landscape label proof (all metrics by k8s_cluster_name)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            yAxis:
+              format:
+                unit: decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: count by (k8s_cluster_name) ({job="telemetry-opentelemetry-collector", __name__=~"k8s_.+|container_.+|system_.+"})
+  layouts:
+  - kind: Grid
+    spec:
+      items:
+      - x: 0
+        y: 0
+        width: 6
+        height: 8
+        content:
+          $ref: '#/spec/panels/nodes_ready'
+      - x: 6
+        y: 0
+        width: 18
+        height: 8
+        content:
+          $ref: '#/spec/panels/cluster_label_check'
+      - x: 0
+        y: 8
+        width: 12
+        height: 10
+        content:
+          $ref: '#/spec/panels/pod_cpu_util'
+      - x: 12
+        y: 8
+        width: 12
+        height: 10
+        content:
+          $ref: '#/spec/panels/pod_mem_util'
+      - x: 0
+        y: 18
+        width: 24
+        height: 10
+        content:
+          $ref: '#/spec/panels/deployment_replicas'

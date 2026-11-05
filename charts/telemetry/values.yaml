@@ -58,6 +58,18 @@ metrics:
   # is the one knob. More metrics (BacklogItems, …) get added to
   # templates/metrics.yaml as the need shows up.
 
+## ─── kubeletstats + k8scluster receivers ────────────────────────────────────
+# Feeds container/pod CPU/memory (kubeletstats) and k8s object state
+# (k8scluster: deployments, pods, nodes, quotas) into the same metrics pipeline the
+# prometheus exporter exposes on :8889. With this enabled you can drop kube-state-
+# metrics and the cAdvisor scrapeConfig; disable it and everything below disappears
+# (receivers, RBAC, network policy, extra deployment) in one `helm upgrade`.
+# Remove-by-flag is intentional — this is the escape hatch for ADR-008.
+otelMetrics:
+  enabled: false
+  # How often kubeletstats polls the kubelet
+  collectionInterval: 30s
+
 ## ─── Prometheus scrape integration (sibling chart) ──────────────────────────
 # When the sibling prometheus-operator chart is deployed, flip this on to make its
 # Prometheus scrape the otel-collector's :8889 exporter (hostmetrics + operator
@@ -126,6 +138,23 @@ opentelemetry-collector:
       - apiGroups: ["apps"]
         resources: [replicasets, deployments, daemonsets, statefulsets]
         verbs: [get, list, watch]
+      # k8scluster (otelMetrics.enabled=true): K8s object state from the API server.
+      # Full object list is wider than the k8sattributes needs above — sinks cronjobs,
+      # jobs, services, HPAs, PVs/PVCs, and (core) quotas/replicationcontrollers.
+      - apiGroups: [""]
+        resources: [resourcequotas, replicationcontrollers, services, persistentvolumes, persistentvolumeclaims]
+        verbs: [get, list, watch]
+      - apiGroups: ["batch"]
+        resources: [jobs, cronjobs]
+        verbs: [get, list, watch]
+      - apiGroups: ["autoscaling"]
+        resources: [horizontalpodautoscalers]
+        verbs: [get, list, watch]
+      # kubeletstats (otelMetrics.enabled=true): serviceAccount auth to kubelet needs
+      # nodes/stats + nodes/proxy (bearer-token) + nodes/pods (the /pods summary view).
+      - apiGroups: [""]
+        resources: [nodes/stats, nodes/proxy, nodes/pods]
+        verbs: [get, list]
   # filelog needs host log mounts (logsCollection preset stays off — we template
   # the receiver ourselves so observedNamespace renders into the glob).
   # Values here are the fallback when ODG's installer does NOT override
