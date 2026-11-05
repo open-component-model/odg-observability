@@ -54,11 +54,11 @@ spec:
     # any backend that pushes outside the cluster (btp, opensearch, ...) needs
     # DNS resolution to succeed, and future backends may sit outside the
     # private ranges.
-    - ports:
+    - to:
+        - ipBlock: { cidr: 0.0.0.0/0 }
+      ports:
         - { port: 53, protocol: UDP }
         - { port: 53, protocol: TCP }
-      to:
-        - ipBlock: { cidr: 0.0.0.0/0 }
 {{- if eq .Values.backend "btp" }}
     # BTP Cloud Logging ingest-otlp endpoint is public-facing. Its IPs rotate
     # (SAP CLS is multi-region); only TCP/443 is needed for OTLP.
@@ -123,11 +123,11 @@ spec:
         - ipBlock: { cidr: 172.16.0.0/12 }
         - ipBlock: { cidr: 192.168.0.0/16 }
         - ipBlock: { cidr: 100.64.0.0/10 }
-    - ports:
+    - to:
+        - ipBlock: { cidr: 0.0.0.0/0 }
+      ports:
         - { port: 53, protocol: UDP }
         - { port: 53, protocol: TCP }
-      to:
-        - ipBlock: { cidr: 0.0.0.0/0 }
     # Gardener injects KUBERNETES_SERVICE_HOST=api.<shoot>.<project>.internal...
     # into every pod, so the apiserver is reached via that DNS name, which may
     # resolve to a non-private LB IP. The agent gets this via its btp :443 rule;
