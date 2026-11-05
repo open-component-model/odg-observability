@@ -1,3 +1,7 @@
+# NOTE: config changes to this ConfigMap do NOT auto-roll the DaemonSet.
+# values.yaml's opentelemetry-collector.podAnnotations carries a hash computed
+# from the same .Values that drive this template — keep its list in sync when
+# this template starts consuming additional values.
 apiVersion: v1
 kind: ConfigMap
 metadata:

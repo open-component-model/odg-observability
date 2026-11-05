@@ -66,7 +66,10 @@ metrics:
 # (receivers, RBAC, network policy, extra deployment) in one `helm upgrade`.
 # Remove-by-flag is intentional — this is the escape hatch for ADR-008.
 otelMetrics:
-  enabled: false
+  # Default-on so ADR-008 evaluation runs against the new path out of the box.
+  # Escape hatch: --set otelMetrics.enabled=false on helm upgrade and the whole
+  # k8scluster/kubeletstats/single-replica stack disappears in one step.
+  enabled: true
   # How often kubeletstats polls the kubelet
   collectionInterval: 30s
 
@@ -92,17 +95,11 @@ opentelemetry-collector:
   # daemonset: one collector per node; k8sattributes sees same-node pods and filelog
   # tails that node's /var/log/pods. Deployment+replicas breaks at 2+ nodes.
   mode: daemonset
-  # Pods restart when the override ConfigMap changes (e.g. backend switch). Without
-  # this helm upgrade leaves running pods on the old config until something else
-  # recreates them.
-  enableConfigChecksumAnnotation: true
-  # NOTE: sub-chart's config-checksum only watches its own default relay, which
-  # we disable via configmaps.create=false. Switching backend/observedNamespace
-  # in --set or providerconfig helmValues requires a manual:
+  # Pods DO NOT auto-restart when templates/collector-config.yaml changes —
+  # `enableConfigChecksumAnnotation` only hashes the subchart's unused built-in relay.
+  # After `helm upgrade` against a config change, run:
   #   kubectl rollout restart ds <release>-opentelemetry-collector-agent -n <ns>
-  # The sub-chart hashes the chart's own config, but we mount `telemetry-override` via
-  # configmaps.create=false. Hash the override content ourselves so pods roll when it
-  # changes (backend switch, observedNamespace, annotationKey, ...).
+  enableConfigChecksumAnnotation: true
   # pin chartnames via fullnameOverride: with odg-core's `helm template` (no release
   # name) .Release.Name is the placeholder "release-name", which leaks into all
   # subcharts' names. `fullnameOverride` bypasses the <release>-<chart> assembly,
