@@ -24,8 +24,11 @@ data:
       k8s_cluster:
         collection_interval: {{ .Values.otelMetrics.collectionInterval | quote }}
         node_conditions_to_report: [Ready, MemoryPressure, DiskPressure, PIDPressure, NetworkUnavailable]
-        # All metrics used by the perses dashboard (k8s.node.condition,
-        # k8s.deployment.*) are on by default; no metrics: overrides needed.
+        metrics:
+          # Optional metric (off by default). The dashboard's Nodes Ready panel queries
+          # k8s_node_condition{condition="Ready"}. Without this, the receiver only emits
+          # the legacy per-condition k8s_node_condition_<name> gauges.
+          k8s.node.condition: { enabled: true }
 
     processors:
       # cluster identity so receiver output picks up k8s.cluster.name the same way as
