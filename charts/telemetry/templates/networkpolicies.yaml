@@ -24,6 +24,9 @@ spec:
         - { port: 4317, protocol: TCP }
         - { port: 4318, protocol: TCP }
         - { port: 8889, protocol: TCP }
+        # kubelet liveness/readiness probes hit the health_check extension
+        # from the node IP — blocked by this ingress-only policy otherwise.
+        - { port: 13133, protocol: TCP }
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -39,43 +42,39 @@ spec:
       app.kubernetes.io/instance: {{ .Release.Name }}
   policyTypes: [Egress]
   egress:
-    # Cluster-local traffic: pods (10.0.0.0/8, node pod CIDRs), legacy
-    # docker/service CIDRs (172.16/192.168), and the gardener service CIDR
-    # (100.64.0.0/10) — kube-dns and the kubernetes.default ClusterIP live
-    # there. Without 100.64/10 the collector can't reach kube-apiserver for
-    # k8sattributes and rbac-informer lookups.
-    - to:
-        - ipBlock: { cidr: 10.0.0.0/8 }
-        - ipBlock: { cidr: 172.16.0.0/12 }
-        - ipBlock: { cidr: 192.168.0.0/16 }
-        - ipBlock: { cidr: 100.64.0.0/10 }
-    # kube-dns ClusterIP lives in the service CIDR (100.64.0.0/10 on gardener),
-    # and rule #1 above already covers it. Keep this explicit DNS rule anyway:
-    # any backend that pushes outside the cluster (btp, opensearch, ...) needs
-    # DNS resolution to succeed, and future backends may sit outside the
-    # private ranges.
+    # No CIDR-scoped rules at all: clusters can run on arbitrary pod/service
+    # IP ranges, so every egress need is covered by a port-scoped rule below.
+    # DNS: kube-dns ClusterIP sits in the service CIDR, which varies by
+    # landscape; port 53 to anywhere keeps resolution working regardless.
     - to:
         - ipBlock: { cidr: 0.0.0.0/0 }
       ports:
         - { port: 53, protocol: UDP }
         - { port: 53, protocol: TCP }
-{{- if eq .Values.backend "btp" }}
-    # BTP Cloud Logging ingest-otlp endpoint is public-facing. Its IPs rotate
-    # (SAP CLS is multi-region); only TCP/443 is needed for OTLP.
+    # kube-apiserver (k8sattributes processor): gardener injects
+    # KUBERNETES_SERVICE_HOST=api.<shoot>.<project>.internal... into every pod,
+    # which may resolve to a non-private LB IP. Allow :443 explicitly.
     - to:
         - ipBlock: { cidr: 0.0.0.0/0 }
       ports:
         - { port: 443, protocol: TCP }
+{{- if eq .Values.backend "opensearch" }}
+    # opensearch backend: endpoint is typically a svc DNS name
+    # (opensearch-*.svc.cluster.local:9200) whose ClusterIP sits in a
+    # landscape-specific service CIDR. The port-scoped rule works on any
+    # cluster IP layout; non-default ports need values.opensearch.port.
+    - to:
+        - ipBlock: { cidr: 0.0.0.0/0 }
+      ports:
+        - { port: {{ .Values.opensearch.port | default 9200 }}, protocol: TCP }
 {{- end }}
-    # opensearch backend is cluster-only by design: endpoint is a svc DNS name
-    # (opensearch-*.svc.cluster.local:9200). Rule #1 above covers pod + service
-    # CIDRs, so no extra rule here. Point the chart at an external OpenSearch
-    # and you must add an explicit ipBlock+port rule yourself.
+    # btp backend is public-facing (:443, covered by the rule above); its IPs
+    # rotate (SAP CLS is multi-region) so ipBlocks couldn't pin it anyway.
+    # debug backend has no push exporter — nothing to allow. Any future
+    # backend with a non-53/443 port needs an explicit port rule here.
 {{- if .Values.otelMetrics.enabled }}
-    # kubeletstats receiver scrapes the kubelet on TCP/10250 on every node.
-    # Existing rule #1 covers RFC1918 node IPs (kind, most gardener CIDRs);
-    # this explicit rule keeps kubelet reachable on networks where node IPs
-    # fall outside those ranges (rare, but real on some on-prem landscapes).
+    # kubeletstats receiver scrapes the kubelet on TCP/10250 on every node;
+    # node IPs vary by landscape (RFC1918 on kind/gardener, anything on-prem).
     - to:
         - ipBlock: { cidr: 0.0.0.0/0 }
       ports:
@@ -101,6 +100,9 @@ spec:
   ingress:
     - ports:
         - { port: 8889, protocol: TCP }
+        # kubelet liveness/readiness probes hit the health_check extension
+        # from the node IP — blocked by this ingress-only policy otherwise.
+        - { port: 13133, protocol: TCP }
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -116,22 +118,20 @@ spec:
       app.kubernetes.io/instance: {{ .Release.Name }}
   policyTypes: [Egress]
   egress:
-    # Cluster-internal only: kube-apiserver + kube-dns. Both sit in cluster
-    # private/100.64 ranges; no public egress ever required.
-    - to:
-        - ipBlock: { cidr: 10.0.0.0/8 }
-        - ipBlock: { cidr: 172.16.0.0/12 }
-        - ipBlock: { cidr: 192.168.0.0/16 }
-        - ipBlock: { cidr: 100.64.0.0/10 }
+    # Cluster-internal only: kube-apiserver + kube-dns. Both are reached via
+    # port-scoped rules below, so no cluster CIDR assumptions are needed at all
+    # (clusters can run on arbitrary pod/service IP ranges).
+    # DNS: kube-dns ClusterIP sits in the service CIDR, which varies by
+    # landscape; port 53 to anywhere keeps resolution working regardless.
     - to:
         - ipBlock: { cidr: 0.0.0.0/0 }
       ports:
         - { port: 53, protocol: UDP }
         - { port: 53, protocol: TCP }
-    # Gardener injects KUBERNETES_SERVICE_HOST=api.<shoot>.<project>.internal...
-    # into every pod, so the apiserver is reached via that DNS name, which may
-    # resolve to a non-private LB IP. The agent gets this via its btp :443 rule;
-    # this pod has no backend rule, so allow :443 explicitly.
+    # kube-apiserver is the k8s_cluster receiver's only target. Gardener
+    # injects KUBERNETES_SERVICE_HOST=api.<shoot>.<project>.internal... into
+    # every pod, so the apiserver is reached via that DNS name on 443, which
+    # may resolve to a non-private LB IP. Allow :443 explicitly.
     - to:
         - ipBlock: { cidr: 0.0.0.0/0 }
       ports:
