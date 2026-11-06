@@ -32,27 +32,4 @@ spec:
   projections:
     - name: resource_namespace
       fieldPath: metadata.namespace
----
-apiVersion: metrics.open-control-plane.io/v1alpha1
-kind: Metric
-metadata:
-  name: odg-backlogitems
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "telemetry.labels" . | nindent 4 }}
-spec:
-  name: odg_backlogitems
-  description: "BacklogItems in the ODG namespace; 'claimed' label says whether a worker picked the item up. Gauge series are per (claimed, priority) — aggregate: sum by (claimed)(odg_backlogitems)"
-  interval: {{ .Values.metrics.interval | quote }}
-  target:
-    group: delivery-gear.gardener.cloud
-    version: v1
-    kind: BacklogItem
-  dataSinkRef:
-    name: default
-  projections:
-    - name: claimed
-      fieldPath: 'metadata.labels.delivery-gear\.gardener\.cloud/claimed'
-    - name: priority
-      fieldPath: 'spec.priority'
 {{- end }}

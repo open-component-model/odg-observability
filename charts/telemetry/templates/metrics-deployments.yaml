@@ -1,0 +1,56 @@
+{{- if .Values.metrics.enabled }}
+# Deployment state per ODG namespace. Sibling of metrics-pods.yaml — pods tell
+# you liveness, deployments tell you rollout divergence (desired vs available).
+# Filter by resource_namespace={{ .Values.observedNamespace }} for ODG-only view.
+---
+apiVersion: metrics.open-control-plane.io/v1alpha1
+kind: Metric
+metadata:
+  name: k8s-deployments-replicas
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+spec:
+  name: k8s_deployments_replicas
+  description: "Sum of spec.replicas per namespace. Pair with k8s_deployments_available to spot rollouts stuck or scaled-to-zero."
+  interval: {{ .Values.metrics.interval | quote }}
+  target:
+    group: apps
+    version: v1
+    kind: Deployment
+  dataSinkRef:
+    name: default
+  valueFrom:
+    fieldPath: spec.replicas
+    type: integer
+    aggregation: sum
+  projections:
+    - name: resource_namespace
+      fieldPath: metadata.namespace
+---
+apiVersion: metrics.open-control-plane.io/v1alpha1
+kind: Metric
+metadata:
+  name: k8s-deployments-available
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "telemetry.labels" . | nindent 4 }}
+spec:
+  name: k8s_deployments_available
+  description: "Sum of status.availableReplicas per namespace. Compare against k8s_deployments_replicas: k8s_deployments_replicas - k8s_deployments_available > 0 = pods missing."
+  interval: {{ .Values.metrics.interval | quote }}
+  target:
+    group: apps
+    version: v1
+    kind: Deployment
+  dataSinkRef:
+    name: default
+  valueFrom:
+    fieldPath: status.availableReplicas
+    type: integer
+    aggregation: sum
+    default: "0"
+  projections:
+    - name: resource_namespace
+      fieldPath: metadata.namespace
+{{- end }}

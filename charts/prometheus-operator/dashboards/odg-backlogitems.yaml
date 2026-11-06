@@ -1,0 +1,215 @@
+kind: Dashboard
+metadata:
+  name: odg-backlogitems
+  project: odg
+  title: ODG / Backlog Items
+spec:
+  display:
+    name: ODG / Backlog Items
+  duration: 3h
+  variables:
+  - kind: ListVariable
+    spec:
+      name: service
+      display:
+        name: Service
+      allowAllValue: true
+      allowMultiple: true
+      plugin:
+        kind: PrometheusLabelValuesVariable
+        spec:
+          datasource:
+            kind: PrometheusDatasource
+            name: prometheus
+          labelName: exported_service
+          matchers:
+          - odg_backlogitems
+  panels:
+    queue_depth:
+      kind: Panel
+      spec:
+        display:
+          name: Backlog depth per service (claimed vs unclaimed)
+          description: 'Stack of odg_backlogitems by service and claimed. Unclaimed = work waiting for a worker pod. Claimed = currently being processed.'
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: decimal
+                decimalPlaces: 0
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (exported_service) (odg_backlogitems{exported_service=~"$service", claimed="False"})
+                seriesNameFormat: '{{exported_service}} / unclaimed'
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (exported_service) (odg_backlogitems{exported_service=~"$service", claimed="True"})
+                seriesNameFormat: '{{exported_service}} / claimed'
+    by_priority:
+      kind: Panel
+      spec:
+        display:
+          name: Backlog by priority
+          description: 'Numeric priority from spec (0=NONE, 1=LOW, 2=MEDIUM, 4=HIGH, 8=CRITICAL). Watch high/critical for stuck queues.'
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: decimal
+                decimalPlaces: 0
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (exported_service, priority) (odg_backlogitems_priority{exported_service=~"$service"})
+                seriesNameFormat: '{{exported_service}} / p={{priority}}'
+    oldest_unclaimed_hours:
+      kind: Panel
+      spec:
+        display:
+          name: Oldest unclaimed BLI (hours)
+          description: 'Age of the oldest backlog item still waiting, per service. Converted from creation timestamp gauge. Alert threshold suggestion: any breach > 2h means a service is starved.'
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              position: bottom
+              mode: table
+              values:
+              - last
+              - max
+            yAxis:
+              format:
+                unit: decimal
+                decimalPlaces: 2
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: (time() - odg_backlogitem_oldest_unclaimed_seconds{exported_service=~"$service"}) / 3600
+                seriesNameFormat: '{{exported_service}}'
+    total_backlog_stat:
+      kind: Panel
+      spec:
+        display:
+          name: Total open BLIs
+          description: 'Sum across all services'
+        plugin:
+          kind: StatChart
+          spec:
+            calculation: last
+            format:
+              unit: decimal
+              decimalPlaces: 0
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum(odg_backlogitems{exported_service=~"$service"})
+    worst_service_stat:
+      kind: Panel
+      spec:
+        display:
+          name: Worst offender (oldest unclaimed, h)
+          description: 'Maximum hours any unclaimed BLI has been waiting across services in scope'
+        plugin:
+          kind: StatChart
+          spec:
+            calculation: last
+            format:
+              unit: decimal
+              decimalPlaces: 2
+            thresholds:
+              steps:
+              - color: '#1f7b33'   # green
+                value: 0
+              - color: '#b8860b'   # amber
+                value: 1
+              - color: '#a83232'   # red
+                value: 3
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: max((time() - odg_backlogitem_oldest_unclaimed_seconds{exported_service=~"$service"}) / 3600)
+  layouts:
+  - kind: Grid
+    spec:
+      items:
+      - x: 0
+        y: 0
+        width: 12
+        height: 6
+        content:
+          $ref: '#/spec/panels/total_backlog_stat'
+      - x: 12
+        y: 0
+        width: 12
+        height: 6
+        content:
+          $ref: '#/spec/panels/worst_service_stat'
+      - x: 0
+        y: 6
+        width: 24
+        height: 8
+        content:
+          $ref: '#/spec/panels/queue_depth'
+      - x: 0
+        y: 14
+        width: 24
+        height: 8
+        content:
+          $ref: '#/spec/panels/oldest_unclaimed_hours'
+      - x: 0
+        y: 22
+        width: 24
+        height: 8
+        content:
+          $ref: '#/spec/panels/by_priority'
