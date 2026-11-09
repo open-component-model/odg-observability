@@ -78,7 +78,7 @@ otelMetrics:
 # `metrics` (see opentelemetry-collector.ports.metrics below).
 prometheus:
   integration:
-    enabled: false
+    enabled: true
     scrapeInterval: 15s
 
 ## ─── Full config escape hatch ───────────────────────────────────────────────
