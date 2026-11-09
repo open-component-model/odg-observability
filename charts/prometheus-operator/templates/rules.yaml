@@ -18,7 +18,7 @@ spec:
             severity: warning
           annotations:
             summary: BacklogItem unclaimed for >24h on {{ "{{" }} $labels.exported_service {{ "}}" }}.
-            description: 'The oldest unclaimed BacklogItem for service {{ "{{" }} $labels.exported_service {{ "}}" }} in namespace {{ "{{" }} $labels.namespace {{ "}}" }} has been waiting for {{ "{{" }} $value | printf "%.1f" {{ "}}" }} hours. Either no worker is running for that service, or items keep failing without recovery.'
+            description: 'The oldest unclaimed BacklogItem for service {{ "{{" }} $labels.exported_service {{ "}}" }} in namespace {{ "{{" }} $labels.namespace {{ "}}" }} has been waiting for {{ "{{" }} $value | printf "%.1f" {{ "}}" }} hours.'
     - name: kubernetes-apps
       rules:
         - alert: KubePodCrashLooping
