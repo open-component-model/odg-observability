@@ -1,21 +1,6 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: prometheus
-  namespace: {{ .Values.target_namespace | default .Release.Namespace }}
-  labels:
-    app: prometheus
-spec:
-  selector:
-    matchLabels:
-      app: delivery-service
-  endpoints:
-    - port: default
-      interval: {{ default "15s" .Values.scrapeInterval }}
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
   name: envoy-gateway
   namespace: {{ .Values.target_namespace | default .Release.Namespace }}
   labels:
