@@ -39,6 +39,7 @@ spec:
                   kind: PrometheusDatasource
                   name: prometheus
                 query: sum by (http_route) (rate(http_server_request_count_total{service_name="$workload"}[5m]))
+                seriesNameFormat: '{{http_route}}'
     error_rate_by_route:
       kind: Panel
       spec:
@@ -61,14 +62,23 @@ spec:
                   kind: PrometheusDatasource
                   name: prometheus
                 # 4xx/5xx are client/server protocol failures (auth, bad route), `error`
-                # is the middleware's catch-all for exceptions from the handler
+                # is the middleware's catch-all for exceptions from the handler.
+                # increase[1h] with a `> 0` presence-guard instead of rate[5m]:
+                # rate() on a cluster with sporadic requests produces error-series
+                # routes whose *total* rate rounded to `0` while error traffic still
+                # registered (all 401s are the "obvious" auth-fail route) — the
+                # 0/0=NaN then survives unseen in perses. Window 1h covers the
+                # provisioning period where collector-side counters reset and is
+                # long enough to aggregate real traffic fractions; `> 0` ensures
+                # both sides only see routes that actually had traffic.
                 query: |
                   (
-                    sum by (http_route, http_response_status_code) (rate(http_server_request_count_total{service_name="$workload", http_response_status_code=~"4..|5..|error"}[5m]))
+                    sum by (http_route, http_response_status_code) (increase(http_server_request_count_total{service_name="$workload", http_response_status_code=~"4..|5..|error"}[1h]) > 0)
                     /
                     on(http_route) group_left
-                    sum by (http_route) (rate(http_server_request_count_total{service_name="$workload"}[5m]) > 0)
+                    sum by (http_route) (increase(http_server_request_count_total{service_name="$workload"}[1h]) > 0)
                   ) * 100
+                seriesNameFormat: '{{http_route}} {{http_response_status_code}}'
     latency_p95:
       kind: Panel
       spec:
@@ -89,7 +99,11 @@ spec:
                 datasource:
                   kind: PrometheusDatasource
                   name: prometheus
-                query: histogram_quantile(0.95, sum by (http_route, le) (rate(http_server_duration_seconds_bucket{service_name="$workload"}[5m])))
+                # new-semconv name only (OTEL_SEMCONV_STABILITY_OPT_IN=http): the
+                # old ms metric has no http_route, an `or` fallback adds an
+                # unlabelled series that hides the per-route split on hover
+                query: histogram_quantile(0.95, sum by (http_route, le) (rate(http_server_request_duration_seconds_bucket{service_name="$workload"}[5m])))
+                seriesNameFormat: 'p95 {{http_route}}'
     latency_p50:
       kind: Panel
       spec:
@@ -110,7 +124,8 @@ spec:
                 datasource:
                   kind: PrometheusDatasource
                   name: prometheus
-                query: histogram_quantile(0.50, sum by (http_route, le) (rate(http_server_duration_seconds_bucket{service_name="$workload"}[5m])))
+                query: histogram_quantile(0.50, sum by (http_route, le) (rate(http_server_request_duration_seconds_bucket{service_name="$workload"}[5m])))
+                seriesNameFormat: 'p50 {{http_route}}'
     in_flight:
       kind: Panel
       spec:
@@ -133,6 +148,7 @@ spec:
                   name: prometheus
                 # up-down counter; exported value is the live count
                 query: sum by (service_name) (http_server_active_requests{service_name="$workload"})
+                seriesNameFormat: 'in-flight ({{service_name}})'
     slowest_routes:
       kind: Panel
       spec:
@@ -153,7 +169,8 @@ spec:
                 datasource:
                   kind: PrometheusDatasource
                   name: prometheus
-                query: topk(10, sum by (http_route) (rate(http_server_duration_seconds_sum{service_name="$workload"}[5m])) / sum by (http_route) (rate(http_server_duration_seconds_count{service_name="$workload"}[5m])))
+                query: topk(10, sum by (http_route) (rate(http_server_request_duration_seconds_sum{service_name="$workload"}[5m])) / sum by (http_route) (rate(http_server_request_duration_seconds_count{service_name="$workload"}[5m])))
+                seriesNameFormat: 'avg {{http_route}}'
   layouts:
   - kind: Grid
     spec:
