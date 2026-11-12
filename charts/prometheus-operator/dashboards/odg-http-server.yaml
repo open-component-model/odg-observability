@@ -1,0 +1,196 @@
+# HTTP request metrics from the odg-core aiohttp middleware (odg.http meter scope).
+# Scoped to the delivery-service — cron-style extensions (artefact-enumerator,
+# backlog-controller, scanners) do not serve HTTP and will never emit these
+# metrics, so they would only invite "why is this empty" questions.
+kind: Dashboard
+metadata:
+  name: odg-http-server
+  project: odg
+  title: Delivery service HTTP
+spec:
+  display:
+    name: Delivery service HTTP
+  duration: 1h
+  variables:
+  - kind: TextVariable
+    spec:
+      name: workload
+      value: delivery-service
+      constant: true
+  panels:
+    req_rate_by_route:
+      kind: Panel
+      spec:
+        display:
+          name: Delivery-service request rate by route (req/s, 5m avg)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            yAxis:
+              format:
+                unit: requests/sec
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: sum by (http_route) (rate(http_server_request_count_total{service_name="$workload"}[5m]))
+    error_rate_by_route:
+      kind: Panel
+      spec:
+        display:
+          name: Delivery-service non-success rate by route + status (% of requests, 4xx/5xx/error)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            yAxis:
+              format:
+                unit: percent
+                decimalPlaces: 1
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                # 4xx/5xx are client/server protocol failures (auth, bad route), `error`
+                # is the middleware's catch-all for exceptions from the handler
+                query: |
+                  (
+                    sum by (http_route, http_response_status_code) (rate(http_server_request_count_total{service_name="$workload", http_response_status_code=~"4..|5..|error"}[5m]))
+                    /
+                    on(http_route) group_left
+                    sum by (http_route) (rate(http_server_request_count_total{service_name="$workload"}[5m]) > 0)
+                  ) * 100
+    latency_p95:
+      kind: Panel
+      spec:
+        display:
+          name: HTTP request duration p95 by route, delivery-service
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            yAxis:
+              format:
+                unit: seconds
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: histogram_quantile(0.95, sum by (http_route, le) (rate(http_server_duration_seconds_bucket{service_name="$workload"}[5m])))
+    latency_p50:
+      kind: Panel
+      spec:
+        display:
+          name: HTTP request duration p50 by route, delivery-service
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            yAxis:
+              format:
+                unit: seconds
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: histogram_quantile(0.50, sum by (http_route, le) (rate(http_server_duration_seconds_bucket{service_name="$workload"}[5m])))
+    in_flight:
+      kind: Panel
+      spec:
+        display:
+          name: In-flight delivery-service requests (sum across replicas)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            yAxis:
+              format:
+                unit: decimal
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                # up-down counter; exported value is the live count
+                query: sum by (service_name) (http_server_active_requests{service_name="$workload"})
+    slowest_routes:
+      kind: Panel
+      spec:
+        display:
+          name: Slowest delivery-service routes (avg duration, top 10, 5m)
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            yAxis:
+              format:
+                unit: seconds
+        queries:
+        - kind: TimeSeriesQuery
+          spec:
+            plugin:
+              kind: PrometheusTimeSeriesQuery
+              spec:
+                datasource:
+                  kind: PrometheusDatasource
+                  name: prometheus
+                query: topk(10, sum by (http_route) (rate(http_server_duration_seconds_sum{service_name="$workload"}[5m])) / sum by (http_route) (rate(http_server_duration_seconds_count{service_name="$workload"}[5m])))
+  layouts:
+  - kind: Grid
+    spec:
+      items:
+      - x: 0
+        y: 0
+        width: 24
+        height: 8
+        content:
+          $ref: '#/spec/panels/req_rate_by_route'
+      - x: 0
+        y: 8
+        width: 12
+        height: 8
+        content:
+          $ref: '#/spec/panels/error_rate_by_route'
+      - x: 12
+        y: 8
+        width: 12
+        height: 8
+        content:
+          $ref: '#/spec/panels/in_flight'
+      - x: 0
+        y: 16
+        width: 12
+        height: 8
+        content:
+          $ref: '#/spec/panels/latency_p50'
+      - x: 12
+        y: 16
+        width: 12
+        height: 8
+        content:
+          $ref: '#/spec/panels/latency_p95'
+      - x: 0
+        y: 24
+        width: 24
+        height: 8
+        content:
+          $ref: '#/spec/panels/slowest_routes'
