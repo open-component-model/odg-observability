@@ -1,6 +1,8 @@
 {{- if .Values.metrics.enabled }}
-# BacklogItem (BLI) metrics. BacklogItem CRs are namespaced to .Values.observedNamespace
-# in the ODG platform. Deletion happens on success — series disappear once processed,
+# BacklogItem (BLI) metrics, scoped to .Values.observedNamespace via fieldSelector
+# on metadata.namespace: the metrics-operator lists target GVKs CLUSTER-WIDE (the
+# Metric CRD target has no namespace field), so the server-side field selector is
+# the only scoping mechanism. Deletion happens on success — series disappear once processed,
 # which downstream alerting treats as "drained" rather than "missing".
 # Used groupings:
 #   sum by (service, claimed)(odg_backlogitems)       — per-service backlog depth, claimed vs unclaimed
@@ -19,6 +21,7 @@ spec:
   name: odg_backlogitems
   description: "BacklogItems by service and claimed label. 'claimed' says whether a worker picked the item up. Aggregate: sum by (service, claimed)(odg_backlogitems)"
   interval: {{ .Values.metrics.interval | quote }}
+  fieldSelector: 'metadata.namespace={{ .Values.observedNamespace }}'
   target:
     group: delivery-gear.gardener.cloud
     version: v1
@@ -43,6 +46,7 @@ spec:
   name: odg_backlogitems_priority
   description: "BacklogItems by service and numeric priority (0=NONE, 1=LOW, 2=MEDIUM, 4=HIGH, 8=CRITICAL). Watch for high-priority backlog buildup."
   interval: {{ .Values.metrics.interval | quote }}
+  fieldSelector: 'metadata.namespace={{ .Values.observedNamespace }}'
   target:
     group: delivery-gear.gardener.cloud
     version: v1
@@ -66,6 +70,7 @@ spec:
   name: odg_backlogitem_oldest_unclaimed_seconds
   description: "Creation timestamp (Unix seconds) of the oldest unclaimed BacklogItem per service. Alert on (time() - metric) > SLA. Emits 0 when nothing is unclaimed."
   interval: {{ .Values.metrics.interval | quote }}
+  fieldSelector: 'metadata.namespace={{ .Values.observedNamespace }}'
   target:
     group: delivery-gear.gardener.cloud
     version: v1
