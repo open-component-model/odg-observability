@@ -3,13 +3,13 @@ installation:
   ocm_references:
     - helm_chart_name: prometheus-operator
       name: ocm.software/open-delivery-gear/observability
-      version: 0.44.0-dev
+      version: 0.44.0-rc.0
       artefact:
         name: prometheus-operator
-        version: 0.44.0-dev
+        version: 0.44.0-rc.0
       mappings:
         - name: prometheus-operator
-          version: 0.44.0-dev
+          version: 0.44.0-rc.0
           artefact_type: helmchart-imagemap
   value_templates:
     - helm_chart_name: prometheus-operator
@@ -38,13 +38,13 @@ installation:
   ocm_references:
     - helm_chart_name: telemetry
       name: ocm.software/open-delivery-gear/observability
-      version: 0.44.0-dev
+      version: 0.44.0-rc.0
       artefact:
         name: telemetry
-        version: 0.44.0-dev
+        version: 0.44.0-rc.0
       mappings:
         - name: telemetry
-          version: 0.44.0-dev
+          version: 0.44.0-rc.0
           artefact_type: helmchart-imagemap
   value_templates:
     - helm_chart_name: telemetry
