@@ -16,7 +16,7 @@ on:
 
 jobs:
   prepare:
-    uses: gardener/cc-utils/.github/workflows/prepare.yaml@v1
+    uses: gardener/cc-utils/.github/workflows/prepare.yaml@bce63f62928717a11f610ec8022af9feb497d5df # v1
     permissions:
       id-token: write
     with:
@@ -30,7 +30,7 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: gardener/cc-utils/.github/actions/trusted-checkout@v1
+    - uses: gardener/cc-utils/.github/actions/trusted-checkout@bce63f62928717a11f610ec8022af9feb497d5df # v1
     - name: Export odg-extension-definitions
       run: |
         export version=${{ needs.prepare.outputs.version }}
@@ -46,7 +46,7 @@ jobs:
 
         tar czf ${blobs_dir}/extension_definitions.tar.gz ${extension_definitions}
 
-    - uses: gardener/cc-utils/.github/actions/export-ocm-fragments@v1
+    - uses: gardener/cc-utils/.github/actions/export-ocm-fragments@bce63f62928717a11f610ec8022af9feb497d5df # v1
       with:
         ocm-resources: |
           name: odg-extension-definitions
@@ -59,7 +59,7 @@ jobs:
 
   helmcharts:
     name: Build Helmcharts
-    uses: gardener/cc-utils/.github/workflows/helmchart-ocm.yaml@v1
+    uses: gardener/cc-utils/.github/workflows/helmchart-ocm.yaml@bce63f62928717a11f610ec8022af9feb497d5df # v1
     needs:
       - prepare
     permissions:
