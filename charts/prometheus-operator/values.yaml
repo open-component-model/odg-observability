@@ -94,7 +94,7 @@ perses-app:
     repository: ~
     tag: ~
     # defaults used when repository/tag are not set (match the ociImage entries in
-    # .ocm/base-component.yaml)
+    # .ocm/component-constructor.yaml)
     registry: docker.io
     name: persesdev/perses
     # version: defaults to the chart appVersion (v0.54.0 for chart 0.23.3)
@@ -110,7 +110,7 @@ perses-app:
     image:
       # flat "host/path/image" + tag; overwritten by OCM relocation. When repository
       # contains a registry (i.e. the default below), the helper uses it verbatim, so keep
-      # it in sync with the ociImage entry in .ocm/base-component.yaml.
+      # it in sync with the ociImage entry in .ocm/component-constructor.yaml.
       repository: docker.io/kiwigrid/k8s-sidecar
       tag: 2.13.3
     resources:

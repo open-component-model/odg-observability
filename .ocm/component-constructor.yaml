@@ -1,0 +1,118 @@
+name: ocm.software/open-delivery-gear/observability
+version: "${VERSION}"
+provider:
+  name: ocm.software
+labels:
+  - name: odg.ocm.software/responsibles
+    value:
+      - github_hostname: github.com
+        teamname: open-component-model/maintainers
+        type: githubTeam
+resources:
+  - name: prometheus-operator
+    type: helmChart
+    version: "${VERSION}"
+    extraIdentity:
+      type: helmChart
+    relation: local
+    access:
+      type: OCIImage/v1
+      imageReference: "${PROMETHEUS_OPERATOR_CHART_REF}"
+  - name: telemetry
+    type: helmChart
+    version: "${VERSION}"
+    extraIdentity:
+      type: helmChart
+    relation: local
+    access:
+      type: OCIImage/v1
+      imageReference: "${TELEMETRY_CHART_REF}"
+  - name: prometheus-operator
+    type: ociImage
+    version: v0.94.1
+    relation: external
+    access:
+      type: OCIImage/v1
+      imageReference: quay.io/prometheus-operator/prometheus-operator:v0.94.1
+  - name: prometheus
+    type: ociImage
+    version: v3.15.0
+    relation: external
+    access:
+      type: OCIImage/v1
+      imageReference: docker.io/prom/prometheus:v3.15.0-distroless
+  - name: prometheus-config-reloader
+    type: ociImage
+    version: v0.94.1
+    relation: external
+    access:
+      type: OCIImage/v1
+      imageReference: quay.io/prometheus-operator/prometheus-config-reloader:v0.94.1
+  - name: opentelemetry-collector-contrib
+    type: ociImage
+    version: 0.163.2
+    relation: external
+    access:
+      type: OCIImage/v1
+      imageReference: docker.io/otel/opentelemetry-collector-contrib:0.163.2
+  - name: metrics-operator
+    type: ociImage
+    version: v1.2.1
+    relation: external
+    access:
+      type: OCIImage/v1
+      imageReference: ghcr.io/openmcp-project/images/metrics-operator:v1.2.1
+  - name: alertmanager
+    type: ociImage
+    version: v0.34.0
+    relation: external
+    access:
+      type: OCIImage/v1
+      imageReference: quay.io/prometheus/alertmanager:v0.34.0
+  - name: kube-state-metrics
+    type: ociImage
+    version: v2.20.0
+    relation: external
+    access:
+      type: OCIImage/v1
+      imageReference: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0
+  - name: perses
+    type: ociImage
+    version: v0.54.0
+    relation: external
+    access:
+      type: OCIImage/v1
+      imageReference: docker.io/persesdev/perses:v0.54.0
+  - name: k8s-sidecar
+    type: ociImage
+    version: 2.13.3
+    relation: external
+    access:
+      type: OCIImage/v1
+      imageReference: docker.io/kiwigrid/k8s-sidecar:2.13.3
+  - name: odg-extension-definitions
+    type: odg-extension
+    version: "${VERSION}"
+    relation: local
+    input:
+      type: Dir/v1
+      path: ./extension-definitions
+      compress: true
+  - name: prometheus-operator
+    type: helmchart-imagemap
+    version: "${VERSION}"
+    extraIdentity:
+      type: helmchart-imagemap
+    relation: local
+    input:
+      type: File/v1
+      path: helmchart-imagemaps/prometheus-operator.json
+  - name: telemetry
+    type: helmchart-imagemap
+    version: "${VERSION}"
+    extraIdentity:
+      type: helmchart-imagemap
+    relation: local
+    input:
+      type: File/v1
+      path: helmchart-imagemaps/telemetry.json

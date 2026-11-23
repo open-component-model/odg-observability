@@ -1,0 +1,28 @@
+{
+  "helmchartResource": {
+    "name": "telemetry"
+  },
+  "imageMapping": [
+    {
+      "resource": {
+        "name": "opentelemetry-collector-contrib"
+      },
+      "repository": "opentelemetry-collector.image.repository",
+      "tag": "opentelemetry-collector.image.tag"
+    },
+    {
+      "resource": {
+        "name": "opentelemetry-collector-contrib"
+      },
+      "repository": "opentelemetry-collector-cluster.image.repository",
+      "tag": "opentelemetry-collector-cluster.image.tag"
+    },
+    {
+      "resource": {
+        "name": "metrics-operator"
+      },
+      "repository": "metrics-operator.image.repository",
+      "tag": "metrics-operator.image.tag"
+    }
+  ]
+}

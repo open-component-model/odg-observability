@@ -1,0 +1,56 @@
+{
+  "helmchartResource": {
+    "name": "prometheus-operator"
+  },
+  "imageMapping": [
+    {
+      "resource": {
+        "name": "prometheus-operator"
+      },
+      "repository": "image.repository",
+      "tag": "image.tag"
+    },
+    {
+      "resource": {
+        "name": "prometheus"
+      },
+      "repository": "prometheus.image.repository",
+      "tag": "prometheus.image.tag"
+    },
+    {
+      "resource": {
+        "name": "prometheus-config-reloader"
+      },
+      "repository": "prometheus-config-reloader.image.repository",
+      "tag": "prometheus-config-reloader.image.tag"
+    },
+    {
+      "resource": {
+        "name": "alertmanager"
+      },
+      "repository": "alertmanager.image.repository",
+      "tag": "alertmanager.image.tag"
+    },
+    {
+      "resource": {
+        "name": "kube-state-metrics"
+      },
+      "repository": "kube-state-metrics.image.repository",
+      "tag": "kube-state-metrics.image.tag"
+    },
+    {
+      "resource": {
+        "name": "perses"
+      },
+      "repository": "perses-app.image.repository",
+      "tag": "perses-app.image.tag"
+    },
+    {
+      "resource": {
+        "name": "k8s-sidecar"
+      },
+      "repository": "perses-app.sidecar.image.repository",
+      "tag": "perses-app.sidecar.image.tag"
+    }
+  ]
+}
